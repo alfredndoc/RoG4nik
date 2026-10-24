@@ -41,7 +41,7 @@ AI.AppendStreamPreview = function(delta)
         AI.StreamPreviewRow = create("Frame", {
             Name = "MessageRow", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1, LayoutOrder = messageOrder, ZIndex = 2,
-        }, ChatDisplay)
+        }, UIRefs.ChatDisplay)
         local previewCard = create("Frame", {
             Name = "StreamingPreview", Size = UDim2.new(0.96, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = Theme.Panel, BackgroundTransparency = 0.12, BorderSizePixel = 0, ZIndex = 3,
@@ -103,7 +103,7 @@ AI.CallAI = function(messages, isTest, indicator, options)
             or (effort == "High") and "high"
             or (effort == "Maximum") and "xhigh" or "medium"
     end
-    local encodeOk, encoded = pcall(function() return HttpService:JSONEncode(body) end)
+    local encodeOk, encoded = pcall(function() return UIRefs.HttpService:JSONEncode(body) end)
     if not encodeOk then return nil, "Failed to encode request: " .. tostring(encoded) end
     local headers = {
         ["Content-Type"] = "application/json",
@@ -123,7 +123,7 @@ AI.CallAI = function(messages, isTest, indicator, options)
         if #dataLines == 0 then return end
         local payload = table.concat(dataLines, "\n")
         if payload == "[DONE]" or payload == "" then return end
-        local jsonOk, packet = pcall(function() return HttpService:JSONDecode(payload) end)
+        local jsonOk, packet = pcall(function() return UIRefs.HttpService:JSONDecode(payload) end)
         if not jsonOk or type(packet) ~= "table" then return end
         local choice = packet.choices and packet.choices[1]
         local delta = choice and (choice.delta or choice.message)
@@ -188,7 +188,7 @@ AI.CallAI = function(messages, isTest, indicator, options)
         if mentionsStream and likelyUnsupported then
             debugTrace("WARN", "Provider rejected streaming; retrying once with buffered JSON mode.")
             body.stream = false
-            local fallbackEncodeOk, fallbackEncoded = pcall(function() return HttpService:JSONEncode(body) end)
+            local fallbackEncodeOk, fallbackEncoded = pcall(function() return UIRefs.HttpService:JSONEncode(body) end)
             if not fallbackEncodeOk then return nil, "Failed to encode non-streaming fallback: " .. tostring(fallbackEncoded) end
             headers.Accept = "application/json"
             local fallbackBody, fallbackStatus = AI.HttpRequest({
@@ -207,7 +207,7 @@ AI.CallAI = function(messages, isTest, indicator, options)
     if numericStatus and (numericStatus < 200 or numericStatus >= 300) then
         local detail = tostring(responseBody):sub(1, 220)
         local providerCode = ""
-        local decodedErrorOk, decodedError = pcall(function() return HttpService:JSONDecode(responseBody) end)
+        local decodedErrorOk, decodedError = pcall(function() return UIRefs.HttpService:JSONDecode(responseBody) end)
         if decodedErrorOk and type(decodedError) == "table" and type(decodedError.error) == "table" then
             detail = tostring(decodedError.error.message or decodedError.error.type or detail)
             providerCode = tostring(decodedError.error.code or decodedError.error.type or "")
@@ -234,7 +234,7 @@ AI.CallAI = function(messages, isTest, indicator, options)
             -- fall through to the normal JSON parser for a clearer error.
         end
     end
-    local decOk, decoded = pcall(function() return HttpService:JSONDecode(responseBody) end)
+    local decOk, decoded = pcall(function() return UIRefs.HttpService:JSONDecode(responseBody) end)
     if not decOk or type(decoded) ~= "table" then return nil, "Invalid JSON response from provider: " .. tostring(responseBody):sub(1, 180) end
     if decoded.error then
         local apiError = type(decoded.error) == "table" and (decoded.error.message or decoded.error.code or decoded.error.type) or decoded.error
@@ -346,7 +346,7 @@ AI.CompactContext = function(messages, indicator)
     if indicator and indicator.setText then indicator.setText("Summarizing earlier context…") end
     local summaryResult
     if not AI.CancelRequest then
-        local preset = ProviderPresets[AI.Provider]
+        local preset = UIRefs.ProviderPresets[AI.Provider]
         local summaryModel = preset and preset.summaryModel or AI.Model
         local ok, result = pcall(AI.CallAI, { { role = "user", content = summaryPrompt } }, false, nil, { maxTokens = 256, noStream = true, model = summaryModel })
         if ok and result and type(result.content) == "string" and result.content:match("%S") then summaryResult = result.content end
@@ -442,14 +442,14 @@ end
 AI.SendMessage = function()
 
     if AI.RequestActive then return end
-    local userText = InputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+    local userText = UIRefs.InputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
     if userText == "" then return end
     AI.RequestActive = true
     AI.CancelRequest = false
     AI.ClearStreamPreview()
     if AI.RefreshSendButton then AI.RefreshSendButton() end
     if not currentConversation() then createNewConversation() end
-    InputBox.Text = ""
+    UIRefs.InputBox.Text = ""
     addMessageBubble(userText, "user", true)
     AI.RefreshSendButton()
 
@@ -514,7 +514,7 @@ AI.SendMessage = function()
                     (tonumber(conversation.aiContextSummaryThrough) or 0) + newlySummarized)
                 hasSavedSummary = true
                 if AI.SaveHistory and writefile then
-                    pcall(function() writefile(CONVOS_FILE, HttpService:JSONEncode(conversations)) end)
+                    pcall(function() writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end)
                 end
             end
             apiMessages = compacted
@@ -652,35 +652,50 @@ AI.SendMessage = function()
     end)
 end
 
-AI.RefreshSendButton = function()
-    local hasText = InputBox.Text:match("%S") ~= nil
-    local canSend = hasText and not AI.RequestActive
-    if AI.StopGlyph then AI.StopGlyph.Visible = AI.RequestActive end
-    tween(SendBtn, {
-        BackgroundColor3 = AI.RequestActive and Theme.Danger or (canSend and Theme.Accent or Theme.Border),
-        ImageColor3 = Theme.White,
-        ImageTransparency = AI.RequestActive and 1 or (canSend and 0 or 0.2),
-    }, 0.18)
+-- Core creates the composer before this module is inserted. Resolve the TextBox
+-- from its parent as a compatibility fallback for bundles with an older Core table.
+local composerInputBox = UIRefs.InputBox
+if not composerInputBox and UIRefs.InputBar then
+    composerInputBox = UIRefs.InputBar:FindFirstChildWhichIsA("TextBox")
+    if composerInputBox then UIRefs.InputBox = composerInputBox end
 end
 
-InputBox:GetPropertyChangedSignal("Text"):Connect(AI.RefreshSendButton)
-InputBox.Focused:Connect(function() tween(InputStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
-InputBox.FocusLost:Connect(function(enterPressed)
-    tween(InputStroke, { Color = Theme.Border, Transparency = 0.05 }, 0.16)
-    if enterPressed and AI.EnterToSend and not UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-        AI.SendMessage()
+AI.RefreshSendButton = function()
+    local inputBox = UIRefs.InputBox or composerInputBox
+    local hasText = inputBox and inputBox.Text:match("%S") ~= nil or false
+    local canSend = hasText and not AI.RequestActive
+    if AI.StopGlyph then AI.StopGlyph.Visible = AI.RequestActive end
+    if UIRefs.SendBtn then
+        tween(UIRefs.SendBtn, {
+            BackgroundColor3 = AI.RequestActive and Theme.Danger or (canSend and Theme.Accent or Theme.Border),
+            ImageColor3 = Theme.White,
+            ImageTransparency = AI.RequestActive and 1 or (canSend and 0 or 0.2),
+        }, 0.18)
     end
+end
+
+if composerInputBox then
+    composerInputBox:GetPropertyChangedSignal("Text"):Connect(AI.RefreshSendButton)
+    composerInputBox.Focused:Connect(function() tween(UIRefs.InputStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
+    composerInputBox.FocusLost:Connect(function(enterPressed)
+        tween(UIRefs.InputStroke, { Color = Theme.Border, Transparency = 0.05 }, 0.16)
+        if enterPressed and AI.EnterToSend and not UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            AI.SendMessage()
+        end
+    end)
+else
+    debugTrace("ERROR", "AIRequest startup could not find the composer TextBox (UIRefs.InputBox / UIRefs.InputBar).")
+end
+UIRefs.SendBtn.MouseEnter:Connect(function()
+    tween(UIRefs.SendScale, { Scale = 1.08 }, 0.17, Enum.EasingStyle.Back)
+    tween(UIRefs.SendStroke, { Transparency = 0.35 }, 0.16)
 end)
-SendBtn.MouseEnter:Connect(function()
-    tween(SendScale, { Scale = 1.08 }, 0.17, Enum.EasingStyle.Back)
-    tween(SendStroke, { Transparency = 0.35 }, 0.16)
+UIRefs.SendBtn.MouseLeave:Connect(function()
+    tween(UIRefs.SendScale, { Scale = 1 }, 0.16)
+    tween(UIRefs.SendStroke, { Transparency = 1 }, 0.16)
 end)
-SendBtn.MouseLeave:Connect(function()
-    tween(SendScale, { Scale = 1 }, 0.16)
-    tween(SendStroke, { Transparency = 1 }, 0.16)
-end)
-SendBtn.MouseButton1Down:Connect(function() tween(SendScale, { Scale = 0.92 }, 0.07) end)
-SendBtn.MouseButton1Click:Connect(function()
+UIRefs.SendBtn.MouseButton1Down:Connect(function() tween(UIRefs.SendScale, { Scale = 0.92 }, 0.07) end)
+UIRefs.SendBtn.MouseButton1Click:Connect(function()
     if AI.RequestActive then
         AI.CancelRequest = true
         if AI.RefreshSendButton then AI.RefreshSendButton() end
@@ -690,7 +705,7 @@ SendBtn.MouseButton1Click:Connect(function()
         return
     end
     AI.SendMessage()
-    SendBtn.Rotation = -14
-    tween(SendBtn, { Rotation = 0 }, 0.28, Enum.EasingStyle.Back)
+    UIRefs.SendBtn.Rotation = -14
+    tween(UIRefs.SendBtn, { Rotation = 0 }, 0.28, Enum.EasingStyle.Back)
 end)
 
