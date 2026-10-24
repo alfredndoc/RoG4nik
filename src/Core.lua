@@ -42,6 +42,7 @@ local AI = {
     ContextMessages = 30,
     RequestTimeout = 45,
     SystemPrompt = "",
+    DisableSummarization = false,
     SaveHistory = true,
     EnterToSend = true,
     AutoScroll = true,
@@ -83,6 +84,7 @@ local function loadSettings()
                 if type(d.ContextMessages) == "number" then AI.ContextMessages = math.clamp(math.floor(d.ContextMessages), 2, 100) end
                 if type(d.RequestTimeout) == "number" then AI.RequestTimeout = math.clamp(math.floor(d.RequestTimeout), 5, 120) end
                 if type(d.SystemPrompt) == "string" then AI.SystemPrompt = d.SystemPrompt end
+                if type(d.DisableSummarization) == "boolean" then AI.DisableSummarization = d.DisableSummarization end
                 if type(d.SaveHistory) == "boolean" then AI.SaveHistory = d.SaveHistory end
                 if type(d.EnterToSend) == "boolean" then AI.EnterToSend = d.EnterToSend end
                 if type(d.AutoScroll) == "boolean" then AI.AutoScroll = d.AutoScroll end
@@ -111,6 +113,7 @@ saveSettings = function()
                 Temperature = AI.Temperature, MaxTokens = AI.MaxTokens,
                 ContextMessages = AI.ContextMessages, RequestTimeout = AI.RequestTimeout,
                 SystemPrompt = AI.SystemPrompt, SaveHistory = AI.SaveHistory,
+                DisableSummarization = AI.DisableSummarization,
                 EnterToSend = AI.EnterToSend, AutoScroll = AI.AutoScroll,
                 AutoExecute = AI.AutoExecute, SandboxMode = AI.SandboxMode,
                 CaptureOutput = AI.CaptureOutput, MaxToolIterations = AI.MaxToolIterations,
