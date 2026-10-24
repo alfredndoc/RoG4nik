@@ -257,9 +257,38 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                     if oldTheme[role] ~= current then
                         local redetected = themeKeyForColor(current, propName, oldTheme)
                         if redetected then role = redetected; roles[propName] = role end
+    -- Some controls update their colors after construction, so the creation-time
+    -- role registry alone is incomplete. Scan once when switching themes and infer
+    -- roles from the colors actually on screen; the large-change path below avoids
+    -- repeating this work during every animation frame.
+    local objects = { root }
+    for _, obj in ipairs(root:GetDescendants()) do objects[#objects + 1] = obj end
+
+    for _, obj in ipairs(objects) do
+        local roles = ThemeRoleRegistry[obj]
+        for propName in pairs(ThemeColorProperties) do
+            local readOk, current = pcall(function() return obj[propName] end)
+            if readOk and typeof(current) == "Color3" then
+                local role = roles and roles[propName]
+                -- If the property was changed to a different palette color after
+                -- creation, prefer its current exact role. Keep the saved role when
+                -- the current value is an in-between transition color.
+                if role and oldTheme[role] ~= current then
+                    local redetected = themeKeyForColor(current, propName, oldTheme)
+                    if redetected then role = redetected end
+                end
+                if role and not newTheme[role] then role = nil end
+                if not role then role = themeKeyForColor(current, propName, oldTheme) end
+
+                if role and newTheme[role] then
+                    if not roles then
+                        roles = {}
+                        ThemeRoleRegistry[obj] = roles
                     end
+                    roles[propName] = role
                     local target = newTheme[role]
                     if target and target ~= current then
+                    if target ~= current then
                         changes[#changes + 1] = {
                             object = obj,
                             property = propName,
@@ -270,6 +299,11 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                     elseif not target and #misses < 60 then
                         misses[#misses + 1] = { path = pathOf(obj), prop = propName, color = current, reason = "theme role missing" }
                     end
+                elseif #misses < 60 then
+                    misses[#misses + 1] = {
+                        path = pathOf(obj), prop = propName, color = current,
+                        reason = "no theme role match",
+                    }
                 end
             end
         end
