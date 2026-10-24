@@ -42,10 +42,12 @@ local ThemeDropdownBtn = create("TextButton", {
 corner(ThemeDropdownBtn, 10)
 padding(ThemeDropdownBtn, 12, 36, 0, 0)
 stroke(ThemeDropdownBtn, Theme.Border, 1, 0.4)
-create("TextLabel", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(20, 20),
-    BackgroundTransparency = 1, Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 10, ZIndex = 9,
+local ThemeChevron = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
+    Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
 }, ThemeDropdownBtn)
+corner(ThemeChevron, 8)
 
 local ThemeDropdownBackdrop = create("TextButton", {
     Name = "ThemeDropdownBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
@@ -97,6 +99,11 @@ local menuOpen = false
 closeThemeDropdown = function(animate)
     if not menuOpen and not ThemeDropdownMenu.Visible then return end
     menuOpen = false
+    if animate then
+        tween(ThemeChevron, { Rotation = 0 }, 0.14, Enum.EasingStyle.Quint)
+    else
+        ThemeChevron.Rotation = 0
+    end
     ThemeDropdownBackdrop.Visible = false
     if animate and ThemeDropdownMenu.Visible then
         local closing = tween(ThemeDropdownMenu, {
@@ -119,6 +126,7 @@ end
 local function openThemeDropdown()
     if closeProviderDropdown then closeProviderDropdown(false) end
     menuOpen = true
+    tween(ThemeChevron, { Rotation = 180 }, 0.2, Enum.EasingStyle.Quint)
     local absPos = ThemeDropdownBtn.AbsolutePosition
     local absSize = ThemeDropdownBtn.AbsoluteSize
     local mainAbsPos = MainFrame.AbsolutePosition
