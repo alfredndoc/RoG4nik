@@ -75,7 +75,11 @@ local themeKeyForColor
 local ThemeRoleRegistry = setmetatable({}, { __mode = "k" })
 local ThemeBaseTransparency = setmetatable({}, { __mode = "k" })
 local ThemeStrokeBase = setmetatable({}, { __mode = "k" })
-local ThemeAppearance = { Advanced = false, Transparency = 0.14, Gloss = 0.25, Gradient = true }
+local ThemeAppearance = {
+    Simple = false, Advanced = false, Transparency = 0.14, Gloss = 0.25, Gradient = true,
+    GradientRotation = 90, GradientStrength = 0.18,
+    GradientStartRGB = "255, 255, 255", GradientEndRGB = "224, 228, 240",
+}
 local ThemeSurfaceRoles = {
     Background = true, Sidebar = true, Panel = true, PanelRaised = true, RightBg = true,
     Selected = true, SegmentedBg = true,
@@ -222,15 +226,35 @@ local function styleScrollBar(scroller)
 end
 ThemeEngine.styleScrollBar = styleScrollBar
 
+local function parseAppearanceRgb(value, fallback)
+    local red, green, blue = tostring(value or ""):match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
+    if not red then return fallback end
+    return Color3.fromRGB(
+        math.clamp(tonumber(red), 0, 255),
+        math.clamp(tonumber(green), 0, 255),
+        math.clamp(tonumber(blue), 0, 255)
+    )
+end
+
 local function resolvedAppearance()
-    if not ThemeAppearance.Advanced then
-        return { Transparency = 0.14, Gloss = 0.25, Gradient = true }
+    if ThemeAppearance.Simple then
+        return {
+            Transparency = 0.14, Gloss = 0.25, Gradient = true,
+            GradientRotation = 90, GradientStrength = 0.18,
+            GradientStart = Color3.new(1, 1, 1), GradientEnd = Color3.fromRGB(224, 228, 240),
+        }
+    elseif ThemeAppearance.Advanced then
+        return {
+            Transparency = math.clamp(tonumber(ThemeAppearance.Transparency) or 0.14, 0, 1),
+            Gloss = math.clamp(tonumber(ThemeAppearance.Gloss) or 0.25, 0, 1),
+            Gradient = ThemeAppearance.Gradient == true,
+            GradientRotation = math.clamp(math.floor(tonumber(ThemeAppearance.GradientRotation) or 90), 0, 360),
+            GradientStrength = math.clamp(tonumber(ThemeAppearance.GradientStrength) or 0.18, 0, 1),
+            GradientStart = parseAppearanceRgb(ThemeAppearance.GradientStartRGB, Color3.new(1, 1, 1)),
+            GradientEnd = parseAppearanceRgb(ThemeAppearance.GradientEndRGB, Color3.fromRGB(224, 228, 240)),
+        }
     end
-    return {
-        Transparency = math.clamp(tonumber(ThemeAppearance.Transparency) or 0.14, 0, 1),
-        Gloss = math.clamp(tonumber(ThemeAppearance.Gloss) or 0.25, 0, 1),
-        Gradient = ThemeAppearance.Gradient == true,
-    }
+    return { Transparency = 0, Gloss = 0, Gradient = false }
 end
 
 applyAppearanceToObject = function(obj)
@@ -249,11 +273,12 @@ applyAppearanceToObject = function(obj)
                     if not gradient then
                         gradient = Instance.new("UIGradient")
                         gradient.Name = "ThemeSurfaceGradient"
-                        gradient.Rotation = 90
                         gradient.Parent = obj
                     end
-                    gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(224, 228, 240))
-                    gradient.Transparency = NumberSequence.new(0.92 - (appearance.Gloss * 0.5), 0.99 - (appearance.Gloss * 0.2))
+                    gradient.Rotation = appearance.GradientRotation
+                    gradient.Color = ColorSequence.new(appearance.GradientStart, appearance.GradientEnd)
+                    local strength = appearance.GradientStrength
+                    gradient.Transparency = NumberSequence.new(1 - strength, 1 - (strength * 0.4))
                 elseif gradient then
                     gradient:Destroy()
                 end
@@ -271,10 +296,15 @@ end
 
 function ThemeEngine.setAppearanceSettings(settings)
     settings = settings or {}
-    ThemeAppearance.Advanced = settings.Advanced == true
+    ThemeAppearance.Simple = settings.Simple == true
+    ThemeAppearance.Advanced = settings.Advanced == true and not ThemeAppearance.Simple
     ThemeAppearance.Transparency = math.clamp(tonumber(settings.Transparency) or 0.14, 0, 1)
     ThemeAppearance.Gloss = math.clamp(tonumber(settings.Gloss) or 0.25, 0, 1)
     ThemeAppearance.Gradient = settings.Gradient ~= false
+    ThemeAppearance.GradientRotation = math.clamp(math.floor(tonumber(settings.GradientRotation) or 90), 0, 360)
+    ThemeAppearance.GradientStrength = math.clamp(tonumber(settings.GradientStrength) or 0.18, 0, 1)
+    ThemeAppearance.GradientStartRGB = tostring(settings.GradientStartRGB or "255, 255, 255")
+    ThemeAppearance.GradientEndRGB = tostring(settings.GradientEndRGB or "224, 228, 240")
     for obj in pairs(ThemeRoleRegistry) do
         if obj and obj.Parent then applyAppearanceToObject(obj) end
     end
@@ -285,7 +315,12 @@ function ThemeEngine.setAppearanceSettings(settings)
 end
 ThemeEngine.getAppearanceSettings = function()
     local appearance = resolvedAppearance()
-    return { Advanced = ThemeAppearance.Advanced, Transparency = appearance.Transparency, Gloss = appearance.Gloss, Gradient = appearance.Gradient }
+    return {
+        Simple = ThemeAppearance.Simple, Advanced = ThemeAppearance.Advanced,
+        Transparency = appearance.Transparency, Gloss = appearance.Gloss, Gradient = appearance.Gradient,
+        GradientRotation = appearance.GradientRotation, GradientStrength = appearance.GradientStrength,
+        GradientStartRGB = ThemeAppearance.GradientStartRGB, GradientEndRGB = ThemeAppearance.GradientEndRGB,
+    }
 end
 
 
