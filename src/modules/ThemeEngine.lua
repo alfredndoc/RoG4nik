@@ -364,6 +364,9 @@ local function setTheme(name)
         if overlay and overlay.Parent then
             overlay.BackgroundTransparency = 1
             overlay.BackgroundColor3 = overlayGoalBg
+            -- Hide the transition surface explicitly. UIGradient transparency can
+            -- still render independently of the frame's BackgroundTransparency.
+            overlay.Visible = false
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -405,6 +408,8 @@ local function setTheme(name)
         finishThemeTransition()
         return #misses == 0
     end
+
+    if overlay and overlay.Parent then overlay.Visible = true end
 
     -- Large interfaces can have hundreds of registered color properties. Updating
     -- every property on every animation frame stalls the render thread. Apply those
