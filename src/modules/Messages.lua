@@ -359,6 +359,9 @@ local function loadConversations()
                 id = item.id,
                 title = type(item.title) == "string" and item.title or "New conversation",
                 history = {},
+                aiContextSummary = type(item.aiContextSummary) == "string" and item.aiContextSummary or nil,
+                aiContextSummaryThrough = type(item.aiContextSummaryThrough) == "number"
+                    and math.max(0, math.floor(item.aiContextSummaryThrough)) or 0,
             }
             for _, message in ipairs(item.history) do
                 if type(message) == "table"
