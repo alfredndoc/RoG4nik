@@ -43,11 +43,11 @@ corner(ThemeDropdownBtn, 10)
 padding(ThemeDropdownBtn, 12, 36, 0, 0)
 stroke(ThemeDropdownBtn, Theme.Border, 1, 0.4)
 local ThemeChevron = create("TextLabel", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -2, 0.5, 0),
-    Size = UDim2.fromOffset(32, 32), BackgroundColor3 = Color3.fromRGB(10, 10, 14),
-    Text = "▼", TextColor3 = Color3.fromRGB(242, 244, 250), Font = Theme.FontBold, TextSize = 13, ZIndex = 9,
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -28, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
+    Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
 }, ThemeDropdownBtn)
-corner(ThemeChevron, 10)
+corner(ThemeChevron, 8)
 
 local ThemeDropdownBackdrop = create("TextButton", {
     Name = "ThemeDropdownBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
