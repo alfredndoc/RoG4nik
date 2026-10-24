@@ -400,7 +400,7 @@ themeKeyForColor = function(c, propName, sourceTheme)
     return nil
 end
 
-local function collectThemeChanges(root, oldTheme, newTheme)
+local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRoles)
     local changes, misses = {}, {}
     if not root then return changes, misses end
     -- Some controls update their colors after construction, so the creation-time
@@ -416,15 +416,20 @@ local function collectThemeChanges(root, oldTheme, newTheme)
             local readOk, current = pcall(function() return obj[propName] end)
             if readOk and typeof(current) == "Color3" then
                 local role = roles and roles[propName]
-                -- If the property was changed to a different palette color after
-                -- creation, prefer its current exact role. Keep the saved role when
-                -- the current value is an in-between transition color.
+                local currentRole = themeKeyForColor(current, propName, oldTheme)
+                -- Exact palette colors can be reclassified after controls update.
+                -- Values outside the palette are often intentional status/syntax
+                -- colors, so drop stale roles unless a previous animation was cut
+                -- short and left an in-between color on screen.
                 if role and oldTheme[role] ~= current then
-                    local redetected = themeKeyForColor(current, propName, oldTheme)
-                    if redetected then role = redetected end
+                    if currentRole then
+                        role = currentRole
+                    elseif not preserveInFlightRoles then
+                        role = nil
+                        if roles then roles[propName] = nil end
+                    end
                 end
-                if role and not newTheme[role] then role = nil end
-                if not role then role = themeKeyForColor(current, propName, oldTheme) end
+                if not role then role = currentRole end
 
                 if role and newTheme[role] then
                     if not roles then
@@ -442,10 +447,10 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                             role = role,
                         }
                     end
-                elseif #misses < 60 then
+                elseif role and #misses < 60 then
                     misses[#misses + 1] = {
                         path = pathOf(obj), prop = propName, color = current,
-                        reason = "no theme role match",
+                        role = role, reason = "theme preset is missing a registered role",
                     }
                 end
             end
@@ -489,6 +494,8 @@ local function setTheme(name)
 
     -- Cancel the previous animation cleanly. An interrupted transition starts from
     -- the actual on-screen colors, not from a stale theme snapshot.
+    local preserveInFlightRoles = RuntimeDiagnostics.ActiveThemeTween ~= nil
+        or RuntimeDiagnostics.ActiveThemeConnection ~= nil
     if RuntimeDiagnostics.ActiveThemeTween then
         pcall(function() RuntimeDiagnostics.ActiveThemeTween:Cancel() end)
         RuntimeDiagnostics.ActiveThemeTween = nil
@@ -502,7 +509,7 @@ local function setTheme(name)
         RuntimeDiagnostics.ActiveThemeProgress = nil
     end
 
-    local changes, misses = collectThemeChanges(root, oldTheme, newThemeSnapshot)
+    local changes, misses = collectThemeChanges(root, oldTheme, newThemeSnapshot, preserveInFlightRoles)
     local overlay = RuntimeDiagnostics.ThemeTransitionOverlay
     local overlayStartBg = overlay and overlay.BackgroundColor3 or oldTheme.Background
     local overlayGoalBg = newThemeSnapshot.Background or Theme.Background
@@ -635,7 +642,7 @@ local function setTheme(name)
     end)
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
-        TweenInfo.new(0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut),
+        TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
         { Value = 1 }
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
