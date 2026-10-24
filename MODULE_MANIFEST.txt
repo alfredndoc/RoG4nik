@@ -48,6 +48,7 @@ Static checks passed for settings persistence, toggle/reset wiring, disabled-pat
 ## Settings and theme updates
 
 - Settings are separated into AI Settings and Theme Settings tabs, each with its own scrolling area.
-- Theme preferences persist Advanced mode, transparency, gloss, and gradient settings. Simple mode uses the glass appearance by default.
+- Simple and Advanced appearance modes are independent and mutually exclusive; both are off by default to keep the selected theme unchanged.
+- Theme preferences persist mode state, transparency, gloss, gradient enablement, direction, strength, and start/end RGB colors. Simple mode applies the fixed glass appearance.
 - Added Red and Cursor Black theme presets.
 - ThemeEngine applies the glass surface treatment to existing and newly created theme surfaces.
