@@ -496,33 +496,25 @@ local CodeHeaderTitle = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 6,
 }, CodeHeader)
 
--- New Toolbar for Name, Description, and Saving
+-- Manual fixed positioning for Toolbar items to prevent any overlap on small screens
 local CodeToolbar = create("Frame", { Position = UDim2.new(0, 0, 0, 38), Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ZIndex = 5 }, CodePanel)
 corner(CodeToolbar, 13)
 local CodeToolbarDivider = create("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Theme.Border, BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 5 }, CodeToolbar)
+padding(CodeToolbar, 12, 12, 0, 0)
 
--- Auto-spacing layout to prevent overlap on small screens
-create("UIListLayout", {
-    FillDirection = Enum.FillDirection.Horizontal,
-    VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 8),
-    SortOrder = Enum.SortOrder.LayoutOrder
-}, CodeToolbar)
-padding(CodeToolbar, 12, 12, 0, 0) -- padding left/right/top/bottom
-
-ScriptUI.NameBox = create("TextBox", {LayoutOrder=1, Size=UDim2.new(0.35, -12, 0, 32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,0,0,7), Size=UDim2.new(0.32,-6,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
 corner(ScriptUI.NameBox,8); stroke(ScriptUI.NameBox,Theme.Border,1,0.15); padding(ScriptUI.NameBox,10,8,0,0)
 
-ScriptUI.DescriptionBox = create("TextBox", {LayoutOrder=2, Size=UDim2.new(0.35, -12, 0, 32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Short description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0.32,2,0,7), Size=UDim2.new(0.32,-8,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
 corner(ScriptUI.DescriptionBox,8); stroke(ScriptUI.DescriptionBox,Theme.Border,1,0.15); padding(ScriptUI.DescriptionBox,10,8,0,0)
 
 -- Save As (Blue)
-local SaveAsBtn = create("TextButton", {LayoutOrder=3, Size=UDim2.new(0.15, 0, 0, 32), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Save As", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
+local SaveAsBtn = create("TextButton", {Position=UDim2.new(0.64,2,0,7), Size=UDim2.new(0.16,-8,0,32), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Save As", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
 corner(SaveAsBtn,8)
 bindSoftButton(SaveAsBtn, {BackgroundColor3=Theme.AccentHover}, 1.02)
 
 -- Save Script (Normal Gray)
-local SaveScriptBtn = create("TextButton", {LayoutOrder=4, Size=UDim2.new(0.15, 0, 0, 32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="Save Script", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
+local SaveScriptBtn = create("TextButton", {Position=UDim2.new(0.80,2,0,7), Size=UDim2.new(0.20,-8,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="Save Script", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
 corner(SaveScriptBtn,8); stroke(SaveScriptBtn,Theme.Border,1,0.15)
 bindSoftButton(SaveScriptBtn, {BackgroundColor3=Theme.Hover}, 1.02)
 
