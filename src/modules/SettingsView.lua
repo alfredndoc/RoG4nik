@@ -43,7 +43,7 @@ corner(ThemeDropdownBtn, 10)
 padding(ThemeDropdownBtn, 12, 36, 0, 0)
 stroke(ThemeDropdownBtn, Theme.Border, 1, 0.4)
 local ThemeChevron = create("TextLabel", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 20, 0.5, 0),
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 56, 0.5, 0),
     Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
     Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
 }, ThemeDropdownBtn)
