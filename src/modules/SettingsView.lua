@@ -174,10 +174,7 @@ local ProviderIcon = create("Frame", {
     BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 9,
 }, ProviderDropdownButton)
 corner(ProviderIcon, 10)
-create("TextLabel", {
-    Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "AI",
-    TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 11, ZIndex = 10,
-}, ProviderIcon)
+Theme.createHubGlyph(ProviderIcon, 20, 10, Theme.Accent, true)
 
 create("TextLabel", {
     Position = UDim2.new(0, 55, 0, 10), Size = UDim2.new(1, -105, 0, 13),
