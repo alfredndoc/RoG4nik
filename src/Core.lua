@@ -956,8 +956,10 @@ UIRefs.EffortGradients = {
     ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(77, 132, 255)), ColorSequenceKeypoint.new(0.38, Color3.fromRGB(128, 113, 255)), ColorSequenceKeypoint.new(0.72, Color3.fromRGB(196, 105, 239)), ColorSequenceKeypoint.new(1, Color3.fromRGB(242, 125, 204)) }),
 }
 
+local sliderHorizontalInset = 18
 local sliderTrackBg = create("Frame", {
-    Position = UDim2.new(0, 18, 0, 44), Size = UDim2.new(1, -36, 0, 6),
+    Position = UDim2.new(0, sliderHorizontalInset, 0, 44),
+    Size = UDim2.new(1, -sliderHorizontalInset * 2, 0, 6),
     BackgroundColor3 = Theme.Border, BorderSizePixel = 0, ZIndex = 32,
 }, UIRefs.EffortPopup)
 corner(sliderTrackBg, 3)
@@ -978,21 +980,22 @@ local sliderKnobStroke = create("UIStroke", {
 }, sliderKnob)
 
 local tickLabels = {}
+local effortLabelRow = create("Frame", {
+    Position = UDim2.new(0, sliderHorizontalInset, 0, 62),
+    Size = UDim2.new(1, -sliderHorizontalInset * 2, 0, 14),
+    BackgroundTransparency = 1, ZIndex = 32,
+}, UIRefs.EffortPopup)
 for i, name in ipairs(effortLevelNames) do
     local xPos = (i - 1) / (#effortLevelNames - 1)
     local anchorX = (i == 1 and 0) or (i == #effortLevelNames and 1) or 0.5
-    local labelPosition
-    if i == 1 then labelPosition = UDim2.new(0, 12, 0, 62)
-    elseif i == #effortLevelNames then labelPosition = UDim2.new(1, -12, 0, 62)
-    else labelPosition = UDim2.new(xPos, 0, 0, 62) end
     tickLabels[i] = create("TextLabel", {
-        AnchorPoint = Vector2.new(anchorX, 0), Position = labelPosition,
+        AnchorPoint = Vector2.new(anchorX, 0), Position = UDim2.new(xPos, 0, 0, 0),
         Size = UDim2.fromOffset(62, 14), BackgroundTransparency = 1,
         Text = name, TextColor3 = i == effortIndex and Theme.PrimaryText or Theme.MutedText,
         Font = i == effortIndex and Theme.FontBold or Theme.Font, TextSize = 9,
         TextXAlignment = (i == 1 and Enum.TextXAlignment.Left) or (i == #effortLevelNames and Enum.TextXAlignment.Right) or Enum.TextXAlignment.Center,
         TextTruncate = Enum.TextTruncate.None, ZIndex = 33,
-    }, UIRefs.EffortPopup)
+    }, effortLabelRow)
 end
 
 setEffortIndex = function(i)
