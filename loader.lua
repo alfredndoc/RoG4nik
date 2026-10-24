@@ -1,10 +1,7 @@
--- Dr4gonik Hub GitHub loader
--- Upload this file's matching src/ folder to the configured GitHub repository.
--- Run this loader in the same supported Roblox executor/runtime as the original script.
-
 local RAW_BASE = "https://raw.githubusercontent.com/alfredndoc/RoG4nik/main/src"
-local CORE_PATH = "src/Core.lua"
-local MODULE_DIRECTORY = "src/modules/"
+local CORE_PATH = "Core.lua" 
+local MODULE_DIRECTORY = "modules/"
+
 local MODULES = {
     "Themes.lua",
     "SystemPrompt.lua",
@@ -18,45 +15,32 @@ local MODULES = {
 
 local function fetchText(path)
     local url = RAW_BASE .. "/" .. path
-    local ok, result = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok then
-        error(("[Dr4gonik Hub] Failed to fetch %s: %s"):format(url, tostring(result)), 0)
-    end
-    if type(result) ~= "string" or result == "" then
-        error(("[Dr4gonik Hub] Empty response from %s"):format(url), 0)
+    local ok, result = pcall(game.HttpGet, game, url)
+    if not ok or type(result) ~= "string" or result == "" or result:find("404: Not Found") then
+        error("Failed to fetch: " .. url, 0)
     end
     return result
 end
 
+print("Fetching modules...")
 local assembled = fetchText(CORE_PATH)
+
 for _, moduleName in ipairs(MODULES) do
-    local marker = "--[[GITHUB_MODULE:" .. moduleName .. "]]\n"
-    local first, last = string.find(assembled, marker, 1, true)
-    if not first then
-        error("[Dr4gonik Hub] Module marker is missing from Core.lua: " .. moduleName, 0)
-    end
-
     local moduleSource = fetchText(MODULE_DIRECTORY .. moduleName)
-    assembled = string.sub(assembled, 1, first - 1)
-        .. moduleSource
-        .. string.sub(assembled, last + 1)
+    local marker = "--[[GITHUB_MODULE:" .. moduleName .. "]]"
+    
+    local startIdx, endIdx = string.find(assembled, marker, 1, true)
+    if not startIdx then
+        error("Missing marker: " .. marker, 0)
+    end
+    
+    assembled = assembled:sub(1, startIdx - 1) .. moduleSource .. assembled:sub(endIdx + 1)
 end
 
-local leftoverStart = string.find(assembled, "--[[GITHUB_MODULE:", 1, true)
-if leftoverStart then
-    error("[Dr4gonik Hub] An unresolved GitHub module marker remains in Core.lua.", 0)
+print("Executing...")
+local fn, err = loadstring(assembled, "Dr4gonikHub")
+if not fn then
+    error("Compile error: " .. tostring(err), 0)
 end
 
-local compiler = loadstring
-if type(compiler) ~= "function" then
-    error("[Dr4gonik Hub] loadstring is unavailable in this runtime.", 0)
-end
-
-local chunk, compileError = compiler(assembled, "@Dr4gonikHub/Core.lua")
-if type(chunk) ~= "function" then
-    error("[Dr4gonik Hub] Combined script failed to compile: " .. tostring(compileError), 0)
-end
-
-return chunk()
+fn()
