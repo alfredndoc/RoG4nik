@@ -3,6 +3,7 @@
 --============================================================
 local SettingsView
 local setEffortIndex
+local ProviderDropdownMenu, ProviderDropdownBackdrop
 do
 SettingsView = create("ScrollingFrame", {
     Name = "SettingsView", Position = UDim2.new(0, 0, 0, CHAT_TOP),
@@ -121,6 +122,10 @@ SettingsView:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
 end)
 
 SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not SettingsView.Visible and ProviderDropdownMenu then
+        ProviderDropdownMenu.Visible = false
+        ProviderDropdownBackdrop.Visible = false
+    end
     if not SettingsView.Visible and menuOpen then
         menuOpen = false
         ThemeDropdownMenu.Visible = false
@@ -130,50 +135,143 @@ end)
 
 -- AI Provider
 local ProviderSection = makeSection("AI Provider", 2)
-local providerRow = create("Frame", { Size = UDim2.new(1, 0, 0, 92), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, ProviderSection)
-create("UIGridLayout", {
-    CellSize = UDim2.new(1/3, -6, 0, 40), CellPadding = UDim2.new(0, 8, 0, 8),
-    FillDirection = Enum.FillDirection.Horizontal, FillDirectionMaxCells = 3,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-}, providerRow)
-
-local providerButtons = {}
+local providerRow = create("Frame", { Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, ProviderSection)
 local ModelInput, EndpointInput
-local providerList = { "DeepSeek", "Gemini", "Groq", "OpenRouter", "OpenAI", "Custom" }
-for i, prov in ipairs(providerList) do
-    local btn = create("TextButton", {
-        Size = UDim2.new(1/3, -6, 0, 40), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = prov,
-        TextColor3 = prov == AI.Provider and Theme.PrimaryText or Theme.MutedText,
-        Font = prov == AI.Provider and Theme.FontBold or Theme.Font, TextSize = 12,
-        AutoButtonColor = false, LayoutOrder = i, ZIndex = 7,
-    }, providerRow)
-    corner(btn, 9)
-    local st = stroke(btn, prov == AI.Provider and Theme.Accent or Theme.Border, 1, prov == AI.Provider and 0 or 0.5)
-    bindSoftButton(btn, { BackgroundColor3 = Theme.PanelRaised }, 1.02)
-    btn.MouseButton1Click:Connect(function()
-        AI.Provider = prov
-        if prov ~= "Custom" then
-            AI.Endpoint = ProviderPresets[prov].endpoint
-            AI.Model = ProviderPresets[prov].models[1]
-        else
-            AI.Endpoint = AI.CustomEndpoint
-        end
-        saveSettings()
-        for p, b in pairs(providerButtons) do
-            local s = b:FindFirstChildOfClass("UIStroke")
-            local active = p == prov
-            tween(b, { TextColor3 = active and Theme.PrimaryText or Theme.MutedText, BackgroundColor3 = Theme.Panel }, 0.16)
-            b.Font = active and Theme.FontBold or Theme.Font
-            if s then tween(s, { Color = active and Theme.Accent or Theme.Border, Transparency = active and 0 or 0.5 }, 0.16) end
-        end
-        if ModelInput then ModelInput.Text = AI.Model end
-        if EndpointInput then
-            EndpointInput.Text = (AI.Provider == "Custom") and AI.CustomEndpoint or AI.Endpoint
-            EndpointInput.TextEditable = AI.Provider == "Custom"
-        end
-    end)
-    providerButtons[prov] = btn
+local providerList = { "DeepSeek", "Gemini", "Groq", "OpenRouter", "Token Harbor", "OpenAI", "Custom" }
+local ProviderDropdownButton = create("TextButton", {
+    Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, Text = "", AutoButtonColor = false, ZIndex = 8,
+}, providerRow)
+corner(ProviderDropdownButton, 11)
+stroke(ProviderDropdownButton, Theme.Border, 1, 0.28)
+bindSoftButton(ProviderDropdownButton, { BackgroundColor3 = Theme.PanelRaised }, 1.008)
+
+local ProviderIcon = create("Frame", {
+    Position = UDim2.new(0, 11, 0.5, -17), Size = UDim2.fromOffset(34, 34),
+    BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 9,
+}, ProviderDropdownButton)
+corner(ProviderIcon, 10)
+create("TextLabel", {
+    Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "AI",
+    TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 11, ZIndex = 10,
+}, ProviderIcon)
+
+create("TextLabel", {
+    Position = UDim2.new(0, 55, 0, 10), Size = UDim2.new(1, -105, 0, 13),
+    BackgroundTransparency = 1, Text = "API PROVIDER", TextColor3 = Theme.QuietText,
+    Font = Theme.FontBold, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9,
+}, ProviderDropdownButton)
+local SelectedProviderLabel = create("TextLabel", {
+    Position = UDim2.new(0, 55, 0, 25), Size = UDim2.new(1, -105, 0, 20),
+    BackgroundTransparency = 1, Text = AI.Provider, TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
+    TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
+}, ProviderDropdownButton)
+local ProviderChevron = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
+    Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
+}, ProviderDropdownButton)
+corner(ProviderChevron, 8)
+
+ProviderDropdownBackdrop = create("TextButton", {
+    Name = "ProviderDropdownBackdrop", Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1, Text = "", AutoButtonColor = false,
+    Visible = false, ZIndex = 99,
+}, MainFrame)
+ProviderDropdownMenu = create("Frame", {
+    Name = "ProviderDropdownMenu", Size = UDim2.fromOffset(240, 0),
+    AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Theme.PanelRaised,
+    BorderSizePixel = 0, Visible = false, ZIndex = 100,
+}, MainFrame)
+corner(ProviderDropdownMenu, 12)
+stroke(ProviderDropdownMenu, Theme.Border, 1, 0.18)
+padding(ProviderDropdownMenu, 7, 7, 7, 7)
+create("UIListLayout", {
+    Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+}, ProviderDropdownMenu)
+
+local providerOptions = {}
+local function closeProviderDropdown()
+    ProviderDropdownMenu.Visible = false
+    ProviderDropdownBackdrop.Visible = false
+    ProviderChevron.Text = "▼"
 end
+
+local function chooseProvider(prov)
+    AI.Provider = prov
+    if prov ~= "Custom" then
+        AI.Endpoint = ProviderPresets[prov].endpoint
+        AI.Model = ProviderPresets[prov].models[1]
+    else
+        AI.Endpoint = AI.CustomEndpoint
+    end
+    SelectedProviderLabel.Text = prov
+    for name, option in pairs(providerOptions) do
+        local active = name == prov
+        option.BackgroundColor3 = active and Theme.Selected or Theme.PanelRaised
+        option.TextColor3 = active and Theme.PrimaryText or Theme.MutedText
+        local check = option:FindFirstChild("SelectedCheck")
+        if check then check.Visible = active end
+    end
+    saveSettings()
+    if ModelInput then ModelInput.Text = AI.Model end
+    if EndpointInput then
+        EndpointInput.Text = (AI.Provider == "Custom") and AI.CustomEndpoint or AI.Endpoint
+        EndpointInput.TextEditable = AI.Provider == "Custom"
+    end
+    closeProviderDropdown()
+end
+
+for i, prov in ipairs(providerList) do
+    local option = create("TextButton", {
+        Name = "ProviderOption_" .. prov:gsub("%s", ""),
+        Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.PanelRaised,
+        BorderSizePixel = 0, Text = prov, TextColor3 = Theme.MutedText,
+        Font = Theme.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+        AutoButtonColor = false, LayoutOrder = i, ZIndex = 101,
+    }, ProviderDropdownMenu)
+    corner(option, 8)
+    padding(option, 11, 34, 0, 0)
+    local check = create("TextLabel", {
+        Name = "SelectedCheck", AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(18, 18),
+        BackgroundTransparency = 1, Text = "✓", TextColor3 = Theme.Accent,
+        Font = Theme.FontBold, TextSize = 13, Visible = prov == AI.Provider, ZIndex = 102,
+    }, option)
+    option.BackgroundColor3 = prov == AI.Provider and Theme.Selected or Theme.PanelRaised
+    option.TextColor3 = prov == AI.Provider and Theme.PrimaryText or Theme.MutedText
+    providerOptions[prov] = option
+    option.MouseEnter:Connect(function()
+        if prov ~= AI.Provider then tween(option, { BackgroundColor3 = Theme.Hover }, 0.1) end
+    end)
+    option.MouseLeave:Connect(function()
+        if prov ~= AI.Provider then tween(option, { BackgroundColor3 = Theme.PanelRaised }, 0.1) end
+    end)
+    option.MouseButton1Click:Connect(function() chooseProvider(prov) end)
+end
+
+ProviderDropdownButton.MouseButton1Click:Connect(function()
+    local open = not ProviderDropdownMenu.Visible
+    if open then
+        menuOpen = false
+        ThemeDropdownMenu.Visible = false
+        ThemeDropdownBackdrop.Visible = false
+        local absPos = ProviderDropdownButton.AbsolutePosition
+        local absSize = ProviderDropdownButton.AbsoluteSize
+        local mainAbsPos = MainFrame.AbsolutePosition
+        ProviderDropdownMenu.Position = UDim2.fromOffset(
+            absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 6
+        )
+        ProviderDropdownMenu.Size = UDim2.fromOffset(absSize.X, #providerList * 40 + 10)
+        ProviderDropdownMenu.Visible = true
+        ProviderDropdownBackdrop.Visible = true
+        ProviderChevron.Text = "▲"
+    else
+        closeProviderDropdown()
+    end
+end)
+ProviderDropdownBackdrop.MouseButton1Click:Connect(closeProviderDropdown)
 
 -- Model
 local ModelSection = makeSection("Model", 3)
