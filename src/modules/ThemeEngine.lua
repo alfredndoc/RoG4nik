@@ -642,7 +642,7 @@ local function setTheme(name)
     end)
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
-        TweenInfo.new(0.58, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+        TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
         { Value = 1 }
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
