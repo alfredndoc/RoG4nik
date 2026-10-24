@@ -26,6 +26,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- Forward declaration: ThemeEngine.setTheme may call this after boot.
 local saveSettings
 --[[GITHUB_MODULE:ThemeEngine.lua]]
+
 --============================================================
 --// AI STATE / PERSISTENCE
 --============================================================
@@ -475,6 +476,9 @@ local EmptyChatLabel = create("TextLabel", {
 --============================================================
 --// CODE EDITOR TAB
 --============================================================
+local setActiveTab
+local ScriptUI = {}
+
 local CodeEditorFrame = create("Frame", {
     Name = "CodeEditorFrame", Position = UDim2.new(0, 0, 0, CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(CHAT_TOP + CHAT_BOTTOM_GAP)), BackgroundTransparency = 1, Visible = false, ZIndex = 4,
@@ -492,11 +496,32 @@ local CodeHeaderTitle = create("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 6,
 }, CodeHeader)
 
+-- New Toolbar for Name, Description, and Saving
+local CodeToolbar = create("Frame", { Position = UDim2.new(0, 0, 0, 38), Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ZIndex = 5 }, CodePanel)
+corner(CodeToolbar, 13)
+local CodeToolbarDivider = create("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Theme.Border, BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 5 }, CodeToolbar)
+
+ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,12,0,7), Size=UDim2.new(0.35,0,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+corner(ScriptUI.NameBox,8); stroke(ScriptUI.NameBox,Theme.Border,1,0.15); padding(ScriptUI.NameBox,10,8,0,0)
+
+ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0.35,18,0,7), Size=UDim2.new(0.30,0,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Short description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+corner(ScriptUI.DescriptionBox,8); stroke(ScriptUI.DescriptionBox,Theme.Border,1,0.15); padding(ScriptUI.DescriptionBox,10,8,0,0)
+
+local SaveScriptBtn = create("TextButton", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-12,0,7), Size=UDim2.new(0,100,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="Save Script", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
+corner(SaveScriptBtn,8); stroke(SaveScriptBtn,Theme.Border,1,0.15)
+bindSoftButton(SaveScriptBtn, {BackgroundColor3=Theme.Hover}, 1.02)
+
+local SaveAsBtn = create("TextButton", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-120,0,7), Size=UDim2.new(0,90,0,32), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Save As", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
+corner(SaveAsBtn,8)
+bindSoftButton(SaveAsBtn, {BackgroundColor3=Theme.AccentHover}, 1.02)
+
+ScriptUI.NameBox:GetPropertyChangedSignal("Text"):Connect(function() CodeHeaderTitle.Text = (ScriptUI.NameBox.Text ~= "" and ScriptUI.NameBox.Text or "script") .. ".lua" end)
+
 local CodeFooter = create("Frame", { Position = UDim2.new(0, 0, 1, -50), Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ZIndex = 5 }, CodePanel)
 corner(CodeFooter, 13)
 
 local CodeScroll = create("ScrollingFrame", {
-    Position = UDim2.new(0, 12, 0, 50), Size = UDim2.new(1, -24, 1, -112),
+    Position = UDim2.new(0, 12, 0, 94), Size = UDim2.new(1, -24, 1, -156),
     BackgroundTransparency = 1, ScrollingDirection = Enum.ScrollingDirection.Y,
     CanvasSize = UDim2.new(0, 0, 0, 200), ZIndex = 5,
 }, CodePanel)
@@ -543,33 +568,31 @@ RunBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local setActiveTab
-local ScriptUI = {}
 --============================================================
 --// SCRIPTS LIBRARY VIEW
 --============================================================
 ScriptUI.View = create("Frame", {Name="ScriptsView", Position=UDim2.new(0,0,0,CHAT_TOP), Size=UDim2.new(1,0,1,-(CHAT_TOP+CHAT_BOTTOM_GAP)), BackgroundTransparency=1, Visible=false, ZIndex=4}, Content)
-ScriptUI.Top = create("Frame", {Size=UDim2.new(1,0,0,76), BackgroundTransparency=1, ZIndex=5}, ScriptUI.View)
-ScriptUI.LoadedName = nil
-ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,0,0,4), Size=UDim2.new(0.40,-5,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="MyScript", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=14, ClearTextOnFocus=false, ZIndex=6}, ScriptUI.Top)
-corner(ScriptUI.NameBox,9); stroke(ScriptUI.NameBox,Theme.Border,1,0.15); padding(ScriptUI.NameBox,10,8,0,0)
-ScriptUI.SaveButton = create("TextButton", {Position=UDim2.new(0.40,3,0,4), Size=UDim2.new(0.20,-4,0,32), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Save editor", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=12, ZIndex=6}, ScriptUI.Top)
-corner(ScriptUI.SaveButton,9)
-ScriptUI.SaveAsButton = create("TextButton", {Position=UDim2.new(0.60,3,0,4), Size=UDim2.new(0.20,-4,0,32), BackgroundColor3=Theme.Hover, BorderSizePixel=0, Text="Save As", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=11, ZIndex=6}, ScriptUI.Top)
-corner(ScriptUI.SaveAsButton,9); stroke(ScriptUI.SaveAsButton,Theme.Border,1,0.15)
-ScriptUI.RefreshButton = create("TextButton", {Position=UDim2.new(0.80,3,0,4), Size=UDim2.new(0.20,-4,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="Refresh", TextColor3=Theme.PrimaryText, Font=Theme.Font, TextSize=12, ZIndex=6}, ScriptUI.Top)
-corner(ScriptUI.RefreshButton,9); stroke(ScriptUI.RefreshButton,Theme.Border,1,0.15)
-ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0,0,0,40), Size=UDim2.new(1,-2,0,30), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="A saved Lua script", PlaceholderText="Short description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, ZIndex=6}, ScriptUI.Top)
-corner(ScriptUI.DescriptionBox,8); stroke(ScriptUI.DescriptionBox,Theme.Border,1,0.15); padding(ScriptUI.DescriptionBox,10,8,0,0)
-ScriptUI.NameBox:GetPropertyChangedSignal("Text"):Connect(function() CodeHeaderTitle.Text = (ScriptUI.NameBox.Text ~= "" and ScriptUI.NameBox.Text or "script") .. ".lua" end)
-ScriptUI.Hint = create("TextLabel", {Position=UDim2.new(0,2,0,74), Size=UDim2.new(1,-4,0,30), BackgroundTransparency=1, Text="Saved scripts · Edit opens the code workspace · Execute runs in the sandbox", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=11, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=5}, ScriptUI.View)
-ScriptUI.List = create("ScrollingFrame", {Position=UDim2.new(0,0,0,108), Size=UDim2.new(1,0,1,-108), BackgroundTransparency=1, BorderSizePixel=0, ScrollingDirection=Enum.ScrollingDirection.Y, AutomaticCanvasSize=Enum.AutomaticSize.Y, CanvasSize=UDim2.new(0,0,0,0), ZIndex=4}, ScriptUI.View)
+
+local NewScriptBtn = create("TextButton", {Position=UDim2.new(0,0,0,0), Size=UDim2.new(1,-8,0,36), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="+ New Script", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=13, ZIndex=6}, ScriptUI.View)
+corner(NewScriptBtn, 8); stroke(NewScriptBtn, Theme.Border, 1, 0.15)
+bindSoftButton(NewScriptBtn, {BackgroundColor3=Theme.Hover}, 1.015)
+NewScriptBtn.MouseButton1Click:Connect(function()
+    CodeTextBox.Text = "-- New script"
+    ScriptUI.NameBox.Text = "NewScript"
+    ScriptUI.DescriptionBox.Text = "A saved Lua script"
+    ScriptUI.LoadedName = nil
+    setActiveTab("Code")
+end)
+
+ScriptUI.Hint = create("TextLabel", {Position=UDim2.new(0,2,0,44), Size=UDim2.new(1,-4,0,30), BackgroundTransparency=1, Text="Saved scripts · Edit opens the code workspace · Execute runs in the sandbox", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=11, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=5}, ScriptUI.View)
+ScriptUI.List = create("ScrollingFrame", {Position=UDim2.new(0,0,0,76), Size=UDim2.new(1,0,1,-76), BackgroundTransparency=1, BorderSizePixel=0, ScrollingDirection=Enum.ScrollingDirection.Y, AutomaticCanvasSize=Enum.AutomaticSize.Y, CanvasSize=UDim2.new(0,0,0,0), ZIndex=4}, ScriptUI.View)
 styleScrollBar(ScriptUI.List); create("UIListLayout", {Padding=UDim.new(0,10), SortOrder=Enum.SortOrder.LayoutOrder}, ScriptUI.List); padding(ScriptUI.List,2,7,3,10)
+
 function ScriptUI.refreshCards()
     for _, child in ipairs(ScriptUI.List:GetChildren()) do if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end end
     local items = _G.listHubScripts()
     if #items==0 then
-        create("TextLabel", {Size=UDim2.new(1,-8,0,82), BackgroundColor3=Theme.Panel, Text="No saved scripts yet\nWrite code in the Code tab, name it above, then press Save editor.", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, TextWrapped=true, ZIndex=5}, ScriptUI.List)
+        create("TextLabel", {Size=UDim2.new(1,-8,0,82), BackgroundColor3=Theme.Panel, Text="No saved scripts yet\nWrite code in the Code tab, name it above, then press Save Script.", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, TextWrapped=true, ZIndex=5}, ScriptUI.List)
         return
     end
     for i,item in ipairs(items) do
@@ -578,9 +601,25 @@ function ScriptUI.refreshCards()
         create("TextLabel", {Position=UDim2.new(0,13,0,8), Size=UDim2.new(1,-26,0,22), BackgroundTransparency=1, Text=item.name, TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=15, TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd, ZIndex=6}, card)
         local desc=tostring(item.description or "Lua script")
         create("TextLabel", {Position=UDim2.new(0,13,0,32), Size=UDim2.new(1,-26,0,27), BackgroundTransparency=1, Text=desc, TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, TextWrapped=true, TextXAlignment=Enum.TextXAlignment.Left, TextTruncate=Enum.TextTruncate.AtEnd, ZIndex=6}, card)
-        local edit=create("TextButton", {Position=UDim2.new(1,-158,1,-36), Size=UDim2.fromOffset(68,26), BackgroundColor3=Theme.Hover, BorderSizePixel=0, Text="Edit", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=12, ZIndex=7}, card); corner(edit,7)
-        local exec=create("TextButton", {Position=UDim2.new(1,-82,1,-36), Size=UDim2.fromOffset(70,26), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Execute", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=11, ZIndex=7}, card); corner(exec,7)
-        edit.MouseButton1Click:Connect(function() CodeTextBox.Text=item.source or (_G.readHubScript(item.name) or ""); ScriptUI.NameBox.Text=item.name; ScriptUI.LoadedName=item.name; ScriptUI.DescriptionBox.Text=item.description or "Edited Lua script"; CodeHeaderTitle.Text=item.name .. ".lua"; setActiveTab("Code") end)
+        
+        local del=create("TextButton", {Position=UDim2.new(1,-232,1,-36), Size=UDim2.fromOffset(60,26), BackgroundColor3=Theme.Danger, BorderSizePixel=0, Text="Delete", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=11, ZIndex=7}, card); corner(del,7)
+        local edit=create("TextButton", {Position=UDim2.new(1,-164,1,-36), Size=UDim2.fromOffset(68,26), BackgroundColor3=Theme.Hover, BorderSizePixel=0, Text="Edit", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=12, ZIndex=7}, card); corner(edit,7)
+        local exec=create("TextButton", {Position=UDim2.new(1,-88,1,-36), Size=UDim2.fromOffset(70,26), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Execute", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=11, ZIndex=7}, card); corner(exec,7)
+        
+        del.MouseButton1Click:Connect(function() 
+            if _G.deleteHubScript then _G.deleteHubScript(item.name) end
+            ScriptUI.refreshCards() 
+        end)
+        
+        edit.MouseButton1Click:Connect(function() 
+            CodeTextBox.Text=item.source or (_G.readHubScript(item.name) or ""); 
+            ScriptUI.NameBox.Text=item.name; 
+            ScriptUI.LoadedName=item.name; 
+            ScriptUI.DescriptionBox.Text=item.description or "Edited Lua script"; 
+            CodeHeaderTitle.Text=item.name .. ".lua"; 
+            setActiveTab("Code") 
+        end)
+        
         exec.MouseButton1Click:Connect(function()
             local result=_G.runHubScript(item.name)
             ScriptUI.Hint.Text=result.ok and ("Executed "..item.name.." · "..tostring(result.output or result.result or "No output"):sub(1,150)) or ("Execution failed: "..tostring(result.error):sub(1,150))
@@ -588,45 +627,110 @@ function ScriptUI.refreshCards()
         end)
     end
 end
-local function saveEditorScript(saveAs)
+
+--============================================================
+--// SAVE AS POPUP
+--============================================================
+local SaveAsPopup = create("Frame", {
+    Name = "SaveAsPopup", Size = UDim2.fromOffset(300, 400), Position = UDim2.new(0.5, -150, 0.5, -200),
+    BackgroundColor3 = Theme.PanelRaised, BorderSizePixel = 0, Visible = false, ZIndex = 100
+}, CodeEditorFrame)
+corner(SaveAsPopup, 12); stroke(SaveAsPopup, Theme.Border, 1, 0.1)
+
+local SaveAsBackdrop = create("TextButton", {
+    Name = "SaveAsBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0.5,
+    BackgroundColor3 = Color3.new(0,0,0), Text = "", AutoButtonColor = false, Visible = false, ZIndex = 99
+}, CodeEditorFrame)
+
+local SaveAsList = create("ScrollingFrame", {
+    Position = UDim2.new(0, 10, 0, 50), Size = UDim2.new(1, -20, 1, -60),
+    BackgroundTransparency = 1, BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.Y,
+    AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0,0,0,0), ZIndex = 101
+}, SaveAsPopup)
+create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, SaveAsList)
+
+create("TextLabel", {
+    Position = UDim2.new(0, 12, 0, 10), Size = UDim2.new(1, -24, 0, 24), BackgroundTransparency = 1,
+    Text = "Overwrite Existing Script", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
+    TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 101
+}, SaveAsPopup)
+
+SaveAsBackdrop.MouseButton1Click:Connect(function() 
+    SaveAsPopup.Visible = false; SaveAsBackdrop.Visible = false 
+end)
+
+local function openSaveAsPopup()
+    for _, child in ipairs(SaveAsList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    
+    local items = _G.listHubScripts()
+    if #items == 0 then
+        local empty = create("TextLabel", {Size=UDim2.new(1,0,0,30), BackgroundTransparency=1, Text="No existing scripts found.", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ZIndex=101}, SaveAsList)
+        empty.LayoutOrder = 1
+    else
+        for i, item in ipairs(items) do
+            local btn = create("TextButton", {
+                Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
+                Text = "  " .. item.name, TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
+                TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = i, ZIndex = 102
+            }, SaveAsList)
+            corner(btn, 8); stroke(btn, Theme.Border, 1, 0.15); padding(btn, 10, 10, 0, 0)
+            bindSoftButton(btn, {BackgroundColor3=Theme.Hover}, 1.015)
+            
+            btn.MouseButton1Click:Connect(function()
+                local desc = ScriptUI.DescriptionBox.Text
+                if desc == "" or desc == "A saved Lua script" then desc = item.description or "Overwritten script" end
+                _G.saveHubScript(item.name, CodeTextBox.Text, desc)
+                ScriptUI.LoadedName = item.name
+                ScriptUI.NameBox.Text = item.name
+                ScriptUI.DescriptionBox.Text = desc
+                
+                SaveAsPopup.Visible = false; SaveAsBackdrop.Visible = false
+                ScriptUI.refreshCards()
+                CodeStatusLabel.Text = "Overwrote " .. item.name
+                CodeStatusLabel.TextColor3 = Theme.MutedText
+            end)
+        end
+    end
+    SaveAsPopup.Visible = true; SaveAsBackdrop.Visible = true
+end
+
+SaveAsBtn.MouseButton1Click:Connect(openSaveAsPopup)
+
+SaveScriptBtn.MouseButton1Click:Connect(function()
     local requestedName = tostring(ScriptUI.NameBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if requestedName == "" then
-        ScriptUI.Hint.Text = "Enter a script name first."
-        ScriptUI.Hint.TextColor3 = Theme.Danger
+        CodeStatusLabel.Text = "Enter a script name first."
+        CodeStatusLabel.TextColor3 = Theme.Danger
         ScriptUI.NameBox:CaptureFocus()
         return
     end
-    if saveAs then
-        local baseName = requestedName
-        local exists = false
+    
+    if ScriptUI.LoadedName and requestedName ~= ScriptUI.LoadedName then
         for _, item in ipairs(_G.listHubScripts()) do
-            if item.name:lower() == requestedName:lower() then exists = true; break end
-        end
-        if exists and ScriptUI.LoadedName and requestedName:lower() == tostring(ScriptUI.LoadedName):lower() then
-            requestedName = baseName .. "_copy"
-            local suffix = 2
-            local function nameExists(candidate)
-                for _, item in ipairs(_G.listHubScripts()) do if item.name:lower() == candidate:lower() then return true end end
-                return false
+            if item.name:lower() == requestedName:lower() then
+                CodeStatusLabel.Text = "Name exists! Use Save As to overwrite."
+                CodeStatusLabel.TextColor3 = Theme.Danger
+                return
             end
-            while nameExists(requestedName) do requestedName = baseName .. "_copy" .. suffix; suffix += 1 end
-            ScriptUI.NameBox.Text = requestedName
-        elseif exists then
-            ScriptUI.Hint.Text = "That name already exists. Choose another name for Save As."
-            ScriptUI.Hint.TextColor3 = Theme.Danger
-            ScriptUI.NameBox:CaptureFocus()
-            return
         end
     end
-    local ok, msg = _G.saveHubScript(requestedName, CodeTextBox.Text, ScriptUI.DescriptionBox.Text)
-    if ok then ScriptUI.LoadedName = requestedName end
-    ScriptUI.Hint.Text = msg
-    ScriptUI.Hint.TextColor3 = ok and Theme.MutedText or Theme.Danger
-    ScriptUI.refreshCards()
-end
-ScriptUI.SaveButton.MouseButton1Click:Connect(function() saveEditorScript(false) end)
-ScriptUI.SaveAsButton.MouseButton1Click:Connect(function() saveEditorScript(true) end)
-ScriptUI.RefreshButton.MouseButton1Click:Connect(ScriptUI.refreshCards)
+    
+    local desc = ScriptUI.DescriptionBox.Text
+    if desc == "" then desc = "A saved Lua script" end
+    
+    local ok, msg = _G.saveHubScript(requestedName, CodeTextBox.Text, desc)
+    if ok then 
+        ScriptUI.LoadedName = requestedName 
+        CodeStatusLabel.Text = "Saved to " .. requestedName
+        CodeStatusLabel.TextColor3 = Theme.MutedText
+        ScriptUI.refreshCards()
+    else
+        CodeStatusLabel.Text = "Save failed: " .. tostring(msg)
+        CodeStatusLabel.TextColor3 = Theme.Danger
+    end
+end)
 
 --[[GITHUB_MODULE:SettingsView.lua]]
 
@@ -681,6 +785,7 @@ end
 
 --[[GITHUB_MODULE:Markdown.lua]]
 --[[GITHUB_MODULE:Messages.lua]]
+
 --============================================================
 --// FOOTER
 --============================================================
@@ -1043,6 +1148,7 @@ ComposerMoreBtn.MouseButton1Click:Connect(function() setMenuOpen("composer") end
 PlusButton.MouseButton1Click:Connect(function() setMenuOpen("plus") end)
 
 --[[GITHUB_MODULE:AIRequest.lua]]
+
 --============================================================
 --// CONVERSATION ACTIONS
 --============================================================
