@@ -1447,7 +1447,9 @@ end)
 --============================================================
 RuntimeDiagnostics.Dragging = false
 RuntimeDiagnostics.DragPointerType = nil
-RuntimeDiagnostics.DragGrabOffset = Vector2.new(0, 0)
+RuntimeDiagnostics.DragStartPointer = Vector2.new(0, 0)
+RuntimeDiagnostics.DragStartAbsolute = Vector2.new(0, 0)
+RuntimeDiagnostics.DragStartPosition = MainFrame.Position
 RuntimeDiagnostics.DragTargetPos = MainFrame.Position
 
 RuntimeDiagnostics.GetPointerPosition = function(input)
@@ -1459,14 +1461,12 @@ TitleGroup.InputBegan:Connect(function(input)
     if not ScreenGui.Enabled or WindowState.state == "maximized" or WindowState.resizing then return end
     local it = input.UserInputType
     if it ~= Enum.UserInputType.MouseButton1 and it ~= Enum.UserInputType.Touch then return end
-    local absolutePosition = MainFrame.AbsolutePosition
+    RuntimeDiagnostics.DragStartPointer = RuntimeDiagnostics.GetPointerPosition(input)
+    RuntimeDiagnostics.DragStartAbsolute = MainFrame.AbsolutePosition
+    RuntimeDiagnostics.DragStartPosition = MainFrame.Position
+    RuntimeDiagnostics.DragTargetPos = MainFrame.Position
     RuntimeDiagnostics.Dragging = true
     RuntimeDiagnostics.DragPointerType = it
-    RuntimeDiagnostics.DragGrabOffset = RuntimeDiagnostics.GetPointerPosition(input) - absolutePosition
-    -- Switch from centered Scale/Offset positioning to absolute offsets before
-    -- interpolation, otherwise the first drag frame can jump off-screen.
-    MainFrame.Position = UDim2.fromOffset(absolutePosition.X, absolutePosition.Y)
-    RuntimeDiagnostics.DragTargetPos = MainFrame.Position
 end)
 
 UserInputService.InputChanged:Connect(function(input)
@@ -1480,17 +1480,27 @@ UserInputService.InputChanged:Connect(function(input)
     if not RuntimeDiagnostics.Dragging then return end
     local matching = (RuntimeDiagnostics.DragPointerType == Enum.UserInputType.MouseButton1 and isMove) or (RuntimeDiagnostics.DragPointerType == Enum.UserInputType.Touch and isTouchMove)
     if not matching then return end
+    local delta = pointer - RuntimeDiagnostics.DragStartPointer
     local vp = viewportSize()
     local frameSize = MainFrame.AbsoluteSize
-    local targetX = math.clamp(pointer.X - RuntimeDiagnostics.DragGrabOffset.X, 0, math.max(0, vp.X - frameSize.X))
-    local targetY = math.clamp(pointer.Y - RuntimeDiagnostics.DragGrabOffset.Y, 0, math.max(0, vp.Y - frameSize.Y))
-    RuntimeDiagnostics.DragTargetPos = UDim2.fromOffset(targetX, targetY)
+    local startAbsolute = RuntimeDiagnostics.DragStartAbsolute
+    local targetX = math.clamp(startAbsolute.X + delta.X, 0, math.max(0, vp.X - frameSize.X))
+    local targetY = math.clamp(startAbsolute.Y + delta.Y, 0, math.max(0, vp.Y - frameSize.Y))
+    local startPosition = RuntimeDiagnostics.DragStartPosition
+    RuntimeDiagnostics.DragTargetPos = UDim2.new(
+        startPosition.X.Scale, startPosition.X.Offset + targetX - startAbsolute.X,
+        startPosition.Y.Scale, startPosition.Y.Offset + targetY - startAbsolute.Y
+    )
 end)
 
 UserInputService.InputEnded:Connect(function(input)
     local it = input.UserInputType
     if it == Enum.UserInputType.MouseButton1 or it == Enum.UserInputType.Touch then
-        if RuntimeDiagnostics.Dragging then RuntimeDiagnostics.Dragging = false; RuntimeDiagnostics.DragPointerType = nil end
+        if RuntimeDiagnostics.Dragging then
+            MainFrame.Position = RuntimeDiagnostics.DragTargetPos
+            RuntimeDiagnostics.Dragging = false
+            RuntimeDiagnostics.DragPointerType = nil
+        end
         if WindowState.resizing then
             WindowState.resizing = false
             tween(DividerLine, { BackgroundColor3 = WindowState.dividerHovered and Theme.Accent or Theme.Border }, 0.14)
@@ -1501,14 +1511,7 @@ end)
 RunService.RenderStepped:Connect(function(dt)
     if RuntimeDiagnostics.Dragging then
         local alpha = math.min(dt * 15, 1)
-        local currentX = MainFrame.Position.X.Offset
-        local currentY = MainFrame.Position.Y.Offset
-        local targetX = RuntimeDiagnostics.DragTargetPos.X.Offset
-        local targetY = RuntimeDiagnostics.DragTargetPos.Y.Offset
-        MainFrame.Position = UDim2.fromOffset(
-            currentX + (targetX - currentX) * alpha,
-            currentY + (targetY - currentY) * alpha
-        )
+        MainFrame.Position = MainFrame.Position:Lerp(RuntimeDiagnostics.DragTargetPos, alpha)
     end
 end)
 
