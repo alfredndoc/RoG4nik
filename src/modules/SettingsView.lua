@@ -4,22 +4,71 @@
 local SettingsView
 local setEffortIndex
 local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
+local AISettingsScroll, ThemeSettingsScroll
+local setSettingsTab
+local themeAdvancedControls
+local themeModeButton, themeTransparencyInput, themeGlossInput, themeGradientButton
+local function refreshThemeControls() end
 do
-SettingsView = create("ScrollingFrame", {
+SettingsView = create("Frame", {
     Name = "SettingsView", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
-    BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.Y,
-    AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), Visible = false, ZIndex = 5,
+    BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 5,
 }, UIRefs.Content)
-styleScrollBar(SettingsView)
-create("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder }, SettingsView)
-padding(SettingsView, 4, 12, 4, 12)
 
-local function makeSection(title, order)
+local SettingsTabs = create("Frame", {
+    Name = "SettingsTabs", Position = UDim2.new(0, 12, 0, 2), Size = UDim2.new(1, -24, 0, 38),
+    BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, ZIndex = 6,
+}, SettingsView)
+corner(SettingsTabs, 10)
+local function makeTabButton(title, x, width)
+    local button = create("TextButton", {
+        Size = UDim2.new(width, -4, 1, -4), Position = UDim2.new(x, 2, 0, 2),
+        BackgroundColor3 = Theme.Accent, BackgroundTransparency = 1, BorderSizePixel = 0,
+        Text = title, TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 12,
+        AutoButtonColor = false, ZIndex = 7,
+    }, SettingsTabs)
+    corner(button, 8)
+    return button
+end
+local AITabButton = makeTabButton("AI Settings", 0, 0.5)
+local ThemeTabButton = makeTabButton("Theme Settings", 0.5, 0.5)
+
+local function makeSettingsScroller(name)
+    local scroll = create("ScrollingFrame", {
+        Name = name, Position = UDim2.new(0, 0, 0, 48), Size = UDim2.new(1, 0, 1, -48),
+        BackgroundTransparency = 1, BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.Y,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0),
+        Visible = false, ZIndex = 5,
+    }, SettingsView)
+    styleScrollBar(scroll)
+    create("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder }, scroll)
+    padding(scroll, 12, 12, 4, 12)
+    return scroll
+end
+AISettingsScroll = makeSettingsScroller("AISettingsScroll")
+ThemeSettingsScroll = makeSettingsScroller("ThemeSettingsScroll")
+
+setSettingsTab = function(tabName)
+    local showTheme = tabName == "Theme"
+    AISettingsScroll.Visible = not showTheme
+    ThemeSettingsScroll.Visible = showTheme
+    AITabButton.BackgroundTransparency = showTheme and 1 or 0
+    AITabButton.TextColor3 = showTheme and Theme.MutedText or Theme.PrimaryText
+    ThemeTabButton.BackgroundTransparency = showTheme and 0 or 1
+    ThemeTabButton.TextColor3 = showTheme and Theme.PrimaryText or Theme.MutedText
+    if closeProviderDropdown then closeProviderDropdown(false) end
+    if closeThemeDropdown then closeThemeDropdown(false) end
+end
+AITabButton.MouseButton1Click:Connect(function() setSettingsTab("AI") end)
+ThemeTabButton.MouseButton1Click:Connect(function() setSettingsTab("Theme") end)
+setSettingsTab("AI")
+
+local function makeSection(title, order, tab)
     local section = create("Frame", {
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 6,
-    }, SettingsView)
+    }, tab == "Theme" and ThemeSettingsScroll or AISettingsScroll)
     create("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, section)
     create("TextLabel", {
         Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1, Text = title:upper(),
@@ -30,7 +79,7 @@ local function makeSection(title, order)
 end
 
 -- Appearance
-local AppearanceSection = makeSection("Appearance", 1)
+local AppearanceSection = makeSection("Appearance", 1, "Theme")
 local themeSelectWrapper = create("Frame", { Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, AppearanceSection)
 
 local ThemeDropdownBtn = create("TextButton", {
@@ -147,14 +196,124 @@ end)
 ThemeDropdownBackdrop.MouseButton1Click:Connect(function()
     closeThemeDropdown(true)
 end)
-SettingsView:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+ThemeSettingsScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
     if menuOpen then closeThemeDropdown(true) end
+end)
+AISettingsScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+    if ProviderDropdownMenu and ProviderDropdownMenu.Visible and closeProviderDropdown then
+        closeProviderDropdown(true)
+    end
 end)
 
 SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
     if not SettingsView.Visible and closeProviderDropdown then closeProviderDropdown(false) end
     if not SettingsView.Visible and menuOpen then closeThemeDropdown(false) end
 end)
+
+local function makeAppearanceLabel(text, order, parent)
+    return create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1, Text = text,
+        TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order, ZIndex = 7,
+    }, parent)
+end
+
+local function applySavedAppearance()
+    ThemeEngine.setAppearanceSettings({
+        Advanced = AI.ThemeAdvanced,
+        Transparency = AI.ThemeTransparency,
+        Gloss = AI.ThemeGloss,
+        Gradient = AI.ThemeGradient,
+    })
+    saveSettings()
+end
+
+local appearanceModeRow = create("Frame", {
+    Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
+    LayoutOrder = 3, ZIndex = 7,
+}, AppearanceSection)
+corner(appearanceModeRow, 10)
+stroke(appearanceModeRow, Theme.Border, 1, 0.35)
+create("TextLabel", {
+    Position = UDim2.new(0, 12, 0, 8), Size = UDim2.new(1, -110, 0, 18), BackgroundTransparency = 1,
+    Text = "Advanced appearance", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+}, appearanceModeRow)
+create("TextLabel", {
+    Position = UDim2.new(0, 12, 0, 29), Size = UDim2.new(1, -110, 0, 16), BackgroundTransparency = 1,
+    Text = "Simple mode uses the glass theme automatically.", TextColor3 = Theme.QuietText,
+    Font = Theme.Font, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+}, appearanceModeRow)
+themeModeButton = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(66, 28),
+    BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg, BorderSizePixel = 0,
+    Text = AI.ThemeAdvanced and "ON" or "OFF", TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 11, AutoButtonColor = false, ZIndex = 8,
+}, appearanceModeRow)
+corner(themeModeButton, 8)
+themeModeButton.MouseButton1Click:Connect(function()
+    AI.ThemeAdvanced = not AI.ThemeAdvanced
+    refreshThemeControls()
+    applySavedAppearance()
+end)
+
+themeAdvancedControls = create("Frame", {
+    Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 150 or 0), BackgroundTransparency = 1, LayoutOrder = 4,
+    Visible = AI.ThemeAdvanced, ZIndex = 7,
+}, AppearanceSection)
+create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, themeAdvancedControls)
+local function makePercentInput(title, value, order)
+    local row = create("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7 }, themeAdvancedControls)
+    makeAppearanceLabel(title, 1, row).Size = UDim2.new(1, -80, 1, 0)
+    local input = create("TextBox", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(64, 28),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = tostring(math.floor(value * 100 + 0.5)),
+        TextColor3 = Theme.PrimaryText, PlaceholderText = "0–100", Font = Theme.FontCode, TextSize = 12,
+        ClearTextOnFocus = false, ZIndex = 8,
+    }, row)
+    corner(input, 7)
+    stroke(input, Theme.Border, 1, 0.45)
+    return input
+end
+themeTransparencyInput = makePercentInput("Transparency (%)", AI.ThemeTransparency, 1)
+themeGlossInput = makePercentInput("Gloss (%)", AI.ThemeGloss, 2)
+local gradientRow = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 7 }, themeAdvancedControls)
+makeAppearanceLabel("Gradient", 1, gradientRow).Size = UDim2.new(1, -80, 1, 0)
+themeGradientButton = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(64, 26),
+    BackgroundColor3 = AI.ThemeGradient and Theme.Accent or Theme.SegmentedBg, BorderSizePixel = 0,
+    Text = AI.ThemeGradient and "ON" or "OFF", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
+    TextSize = 11, AutoButtonColor = false, ZIndex = 8,
+}, gradientRow)
+corner(themeGradientButton, 7)
+themeGradientButton.MouseButton1Click:Connect(function()
+    AI.ThemeGradient = not AI.ThemeGradient
+    refreshThemeControls()
+    applySavedAppearance()
+end)
+local function bindPercentInput(input, key)
+    input.FocusLost:Connect(function()
+        local value = tonumber(input.Text)
+        if not value then value = AI[key] * 100 end
+        AI[key] = math.clamp(value, 0, 100) / 100
+        input.Text = tostring(math.floor(AI[key] * 100 + 0.5))
+        applySavedAppearance()
+    end)
+end
+bindPercentInput(themeTransparencyInput, "ThemeTransparency")
+bindPercentInput(themeGlossInput, "ThemeGloss")
+refreshThemeControls = function()
+    themeAdvancedControls.Visible = AI.ThemeAdvanced
+    themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 150 or 0)
+    themeModeButton.Text = AI.ThemeAdvanced and "ON" or "OFF"
+    themeModeButton.BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg
+    themeGradientButton.Text = AI.ThemeGradient and "ON" or "OFF"
+    themeGradientButton.BackgroundColor3 = AI.ThemeGradient and Theme.Accent or Theme.SegmentedBg
+    themeTransparencyInput.Text = tostring(math.floor(AI.ThemeTransparency * 100 + 0.5))
+    themeGlossInput.Text = tostring(math.floor(AI.ThemeGloss * 100 + 0.5))
+end
+refreshThemeControls()
+applySavedAppearance()
 
 -- AI Provider
 local ProviderSection = makeSection("AI Provider", 2)
@@ -618,6 +777,6 @@ create("TextLabel", {
     TextColor3 = Theme.QuietText, Font = Theme.Font, TextSize = 10,
     TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 10, ZIndex = 7,
-}, SettingsView)
+}, AISettingsScroll)
 
 end -- settings scope
