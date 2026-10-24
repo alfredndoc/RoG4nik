@@ -55,9 +55,10 @@ local AI = {
     StreamingEnabled = true,
     ThemeSimple = false,
     ThemeAdvanced = false,
-    ThemeTransparency = 0.14,
-    ThemeGloss = 0.25,
-    ThemeGradient = true,
+    ThemeGlass = false,
+    ThemeTransparency = 0.1,
+    ThemeGloss = 0.35,
+    ThemeGradient = false,
     ThemeGradientRotation = 90,
     ThemeGradientStrength = 0.18,
     ThemeGradientStartRGB = "255, 255, 255",
@@ -106,6 +107,7 @@ local function loadSettings()
                 if type(d.IncludeWorkspace) == "boolean" then AI.IncludeWorkspace = d.IncludeWorkspace end
                 if type(d.ThemeSimple) == "boolean" then AI.ThemeSimple = d.ThemeSimple end
                 if type(d.ThemeAdvanced) == "boolean" then AI.ThemeAdvanced = d.ThemeAdvanced end
+                if type(d.ThemeGlass) == "boolean" then AI.ThemeGlass = d.ThemeGlass end
                 if AI.ThemeSimple then AI.ThemeAdvanced = false end
                 if type(d.ThemeTransparency) == "number" then AI.ThemeTransparency = math.clamp(d.ThemeTransparency, 0, 1) end
                 if type(d.ThemeGloss) == "number" then AI.ThemeGloss = math.clamp(d.ThemeGloss, 0, 1) end
@@ -139,7 +141,7 @@ saveSettings = function()
                 AutoExecute = AI.AutoExecute, SandboxMode = AI.SandboxMode,
                 CaptureOutput = AI.CaptureOutput, MaxToolIterations = AI.MaxToolIterations,
                 IncludeWorkspace = AI.IncludeWorkspace,
-                ThemeSimple = AI.ThemeSimple, ThemeAdvanced = AI.ThemeAdvanced,
+                ThemeSimple = AI.ThemeSimple, ThemeAdvanced = AI.ThemeAdvanced, ThemeGlass = AI.ThemeGlass,
                 ThemeTransparency = AI.ThemeTransparency, ThemeGloss = AI.ThemeGloss,
                 ThemeGradient = AI.ThemeGradient, ThemeGradientRotation = AI.ThemeGradientRotation,
                 ThemeGradientStrength = AI.ThemeGradientStrength,
