@@ -14,7 +14,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
                 toolKind = toolKind, toolSuccess = toolSuccess,
             })
             pcall(function()
-                if AI.SaveHistory and writefile then writefile(CONVOS_FILE, HttpService:JSONEncode(conversations)) end
+                if AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
             end)
         end
         return nil
@@ -24,7 +24,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
         local row = create("Frame", {
             Name = "MessageRow", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1, LayoutOrder = messageOrder, ZIndex = 2,
-        }, ChatDisplay)
+        }, UIRefs.ChatDisplay)
         local panel = create("Frame", {
             Name = "ToolResultPanel", Size = UDim2.new(0.94, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 3,
@@ -80,7 +80,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
                 })
                 pcall(function()
                     if AI.SaveHistory and writefile then
-                        writefile(CONVOS_FILE, HttpService:JSONEncode(conversations))
+                        writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations))
                     end
                 end)
             end
@@ -88,14 +88,14 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
         local scale = create("UIScale", { Scale = 0.97 }, row)
         tween(scale, { Scale = 1 }, 0.22, Enum.EasingStyle.Back)
         chatHasContent = true
-        if EmptyChatLabel then EmptyChatLabel.Visible = false end
+        if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
         scrollChatToBottom()
         return row
     elseif role == "error" then
         local row = create("Frame", {
             Name = "MessageRow", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1, LayoutOrder = messageOrder, ZIndex = 2,
-        }, ChatDisplay)
+        }, UIRefs.ChatDisplay)
         local panel = create("Frame", {
             Name = "ErrorPanel", Size = UDim2.new(0.94, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 3,
@@ -119,7 +119,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
         local scale = create("UIScale", { Scale = 0.98 }, row)
         tween(scale, { Scale = 1 }, 0.2, Enum.EasingStyle.Quad)
         chatHasContent = true
-        if EmptyChatLabel then EmptyChatLabel.Visible = false end
+        if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
         scrollChatToBottom()
         return row
     end
@@ -128,7 +128,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
     local row = create("Frame", {
         Name = "MessageRow", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1, LayoutOrder = messageOrder, ZIndex = 2,
-    }, ChatDisplay)
+    }, UIRefs.ChatDisplay)
 
     if isUser then
         local bubble = create("Frame", {
@@ -179,7 +179,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
                 firstLine = firstLine:gsub("^%s+", ""):gsub("%s+$", "")
                 if #firstLine > 30 then firstLine = firstLine:sub(1, 29) .. "…" end
                 conversation.title = firstLine ~= "" and firstLine or "New conversation"
-                if ChatTitle and selectedConversationId == conversation.id then ChatTitle.Text = conversation.title end
+                if UIRefs.ChatTitle and selectedConversationId == conversation.id then UIRefs.ChatTitle.Text = conversation.title end
                 local rowButton = conversationRows[conversation.id]
                 local selectButton = rowButton and rowButton:FindFirstChild("SelectConversationButton")
                 local titleLabel = selectButton and selectButton:FindFirstChild("ConversationTitle")
@@ -188,7 +188,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
             table.insert(conversation.history, { role = role, text = text, reasoning = reasoning, model = modelName })
             pcall(function()
                 if AI.SaveHistory and writefile then
-                    writefile(CONVOS_FILE, HttpService:JSONEncode(conversations))
+                    writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations))
                 end
             end)
         end
@@ -198,7 +198,7 @@ local function addMessageBubble(text, role, saveToHistory, reasoning, modelName,
         tween(scale, { Scale = 1 }, 0.23, Enum.EasingStyle.Back)
     end
     chatHasContent = true
-    if EmptyChatLabel then EmptyChatLabel.Visible = false end
+    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
     scrollChatToBottom()
     return row
 end
@@ -208,7 +208,7 @@ local function addThinkingIndicator()
     local row = create("Frame", {
         Name = "MessageRow", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1, LayoutOrder = messageOrder, ZIndex = 2,
-    }, ChatDisplay)
+    }, UIRefs.ChatDisplay)
     local wrapper = create("Frame", { Size = UDim2.new(0.94, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, ZIndex = 3 }, row)
     create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, wrapper)
     local headerRow = create("Frame", { Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 4 }, wrapper)
@@ -224,7 +224,7 @@ local function addThinkingIndicator()
         TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 2, ZIndex = 4,
     }, wrapper)
     chatHasContent = true
-    if EmptyChatLabel then EmptyChatLabel.Visible = false end
+    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
     scrollChatToBottom()
     local dots, running, fixedStatus = 0, true, nil
     task.spawn(function()
@@ -254,11 +254,11 @@ local function showConversation(id)
     local conversation = getConversation(id)
     if not conversation then return end
     selectedConversationId = id
-    if ChatTitle then ChatTitle.Text = conversation.title end
+    if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = conversation.title end
     refreshConversationStyles()
     clearRenderedMessages()
     chatHasContent = #conversation.history > 0
-    if EmptyChatLabel then EmptyChatLabel.Visible = not chatHasContent end
+    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = not chatHasContent end
     for _, message in ipairs(conversation.history) do
         addMessageBubble(message.text, message.role, false, message.reasoning, message.model, message.toolKind, message.toolSuccess)
     end
@@ -270,7 +270,7 @@ local function createConversationRow(conversation)
     local row = create("Frame", {
         Name = "ConversationRow_" .. id, Size = UDim2.new(1, 0, 0, 35), BackgroundColor3 = Theme.Hover,
         BackgroundTransparency = 1, BorderSizePixel = 0, LayoutOrder = 20, ZIndex = 4,
-    }, SidebarScroll)
+    }, UIRefs.SidebarScroll)
     corner(row, 8)
     row:SetAttribute("Hovered", false)
     local selectButton = create("TextButton", {
@@ -311,8 +311,8 @@ local function createConversationRow(conversation)
         if activeView == "settings" then
             activeView = "chat"
             if SettingsView then SettingsView.Visible = false end
-            if ChatDisplay then ChatDisplay.Visible = true end
-            if InputBar then InputBar.Visible = true end
+            if UIRefs.ChatDisplay then UIRefs.ChatDisplay.Visible = true end
+            if UIRefs.InputBar then UIRefs.InputBar.Visible = true end
         end
     end)
     more.MouseButton1Click:Connect(function()
@@ -341,11 +341,11 @@ local function loadConversations()
     conversations = {}
     if not AI.SaveHistory or type(readfile) ~= "function" then return end
 
-    local ok, raw = pcall(readfile, CONVOS_FILE)
+    local ok, raw = pcall(readfile, UIRefs.CONVOS_FILE)
     if not ok or type(raw) ~= "string" or raw == "" then return end
 
     local decodeOk, decoded = pcall(function()
-        return HttpService:JSONDecode(raw)
+        return UIRefs.HttpService:JSONDecode(raw)
     end)
     if not decodeOk or type(decoded) ~= "table" then
         debugTrace("WARN", "Conversation history is invalid JSON; starting with an empty history.")
