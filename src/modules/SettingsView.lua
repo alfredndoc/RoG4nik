@@ -120,6 +120,14 @@ SettingsView:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
     end
 end)
 
+SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not SettingsView.Visible and menuOpen then
+        menuOpen = false
+        ThemeDropdownMenu.Visible = false
+        ThemeDropdownBackdrop.Visible = false
+    end
+end)
+
 -- AI Provider
 local ProviderSection = makeSection("AI Provider", 2)
 local providerRow = create("Frame", { Size = UDim2.new(1, 0, 0, 92), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, ProviderSection)
