@@ -3,6 +3,7 @@
 --============================================================
 local ThemeEngine = {
     CurrentThemeName = "Dark",
+    DropdownChevronOffset = 21,
 }
 
 local RuntimeDiagnostics = {
