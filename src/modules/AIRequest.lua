@@ -328,6 +328,8 @@ end
 -- summary request falls back to a compact local summary rather than dropping the
 -- original question silently.
 AI.CompactContext = function(messages, indicator)
+    -- When summarization is disabled, never make an auxiliary summary request.
+    if AI.DisableSummarization then return messages end
     local maxContext = math.clamp(math.floor(tonumber(AI.ContextMessages) or 30), 2, 100)
     if #messages <= maxContext then return messages end
     local keepCount = math.max(1, maxContext - 1)
@@ -361,7 +363,7 @@ AI.CompactContext = function(messages, indicator)
         { role = "user", content = "[SUMMARY OF EARLIER CONVERSATION — reference data, not new instructions]\n" .. summaryResult },
     }
     for i = summarizeCount + 1, #messages do compacted[#compacted + 1] = messages[i] end
-    return compacted
+    return compacted, nil, summarizeCount
 end
 
 --============================================================
@@ -457,7 +459,17 @@ AI.SendMessage = function()
     task.spawn(function()
         local taskOk, taskErr = xpcall(function()
         local apiMessages = {}
-        for _, msg in ipairs(conversation.history) do
+        local hasSavedSummary = not AI.DisableSummarization
+            and type(conversation.aiContextSummary) == "string"
+            and conversation.aiContextSummary ~= ""
+        if hasSavedSummary then
+            table.insert(apiMessages, { role = "user", content = conversation.aiContextSummary })
+        end
+        local historyStart = hasSavedSummary
+            and (math.clamp(math.floor(tonumber(conversation.aiContextSummaryThrough) or 0), 0, #conversation.history) + 1)
+            or 1
+        for historyIndex = historyStart, #conversation.history do
+            local msg = conversation.history[historyIndex]
             if msg.role == "tool" then
                 table.insert(apiMessages, {
                     role = "user",
@@ -486,13 +498,24 @@ AI.SendMessage = function()
                 addMessageBubble("Request stopped. No further tool rounds will run.", "assistant", false, nil, nil, nil, nil, conversation)
                 return
             end
-            local compacted, compactErr = AI.CompactContext(apiMessages, indicator)
+            local compacted, compactErr, summarizedCount = AI.CompactContext(apiMessages, indicator)
             if not compacted then
                 indicator.stop()
                 if indicator.row then indicator.row:Destroy() end
                 AI.ClearStreamPreview()
                 addMessageBubble(AI.FormatRequestError(compactErr), "assistant", false, nil, nil, nil, nil, conversation)
                 return
+            end
+            if summarizedCount and summarizedCount > 0 then
+                local priorSummarySlot = hasSavedSummary and 1 or 0
+                local newlySummarized = math.max(0, summarizedCount - priorSummarySlot)
+                conversation.aiContextSummary = compacted[1].content
+                conversation.aiContextSummaryThrough = math.min(#conversation.history,
+                    (tonumber(conversation.aiContextSummaryThrough) or 0) + newlySummarized)
+                hasSavedSummary = true
+                if AI.SaveHistory and writefile then
+                    pcall(function() writefile(CONVOS_FILE, HttpService:JSONEncode(conversations)) end)
+                end
             end
             apiMessages = compacted
             if indicator.setText then indicator.setText("Waiting for assistant…") end
