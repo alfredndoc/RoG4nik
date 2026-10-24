@@ -73,6 +73,14 @@ end
 --============================================================
 local themeKeyForColor
 local ThemeRoleRegistry = setmetatable({}, { __mode = "k" })
+local ThemeBaseTransparency = setmetatable({}, { __mode = "k" })
+local ThemeStrokeBase = setmetatable({}, { __mode = "k" })
+local ThemeAppearance = { Advanced = false, Transparency = 0.14, Gloss = 0.25, Gradient = true }
+local ThemeSurfaceRoles = {
+    Background = true, Sidebar = true, Panel = true, PanelRaised = true, RightBg = true,
+    Selected = true, SegmentedBg = true,
+}
+local function applyAppearanceToObject(obj) end
 local ThemeColorProperties = {
     BackgroundColor3 = true, TextColor3 = true, ImageColor3 = true, Color = true,
     PlaceholderColor3 = true, ScrollBarImageColor3 = true, BorderColor3 = true,
@@ -96,7 +104,13 @@ local function create(className, props, parent)
         end
     end
     if next(roles) then ThemeRoleRegistry[inst] = roles end
+    if inst:IsA("GuiObject") then
+        ThemeBaseTransparency[inst] = inst.BackgroundTransparency
+    elseif inst:IsA("UIStroke") then
+        ThemeStrokeBase[inst] = { Transparency = inst.Transparency, Thickness = inst.Thickness }
+    end
     if parent then inst.Parent = parent end
+    if applyAppearanceToObject then applyAppearanceToObject(inst) end
     return inst
 end
 
@@ -207,6 +221,72 @@ local function styleScrollBar(scroller)
     scroller.MouseLeave:Connect(function() tween(scroller, { ScrollBarImageTransparency = 0.52 }, 0.18) end)
 end
 ThemeEngine.styleScrollBar = styleScrollBar
+
+local function resolvedAppearance()
+    if not ThemeAppearance.Advanced then
+        return { Transparency = 0.14, Gloss = 0.25, Gradient = true }
+    end
+    return {
+        Transparency = math.clamp(tonumber(ThemeAppearance.Transparency) or 0.14, 0, 1),
+        Gloss = math.clamp(tonumber(ThemeAppearance.Gloss) or 0.25, 0, 1),
+        Gradient = ThemeAppearance.Gradient == true,
+    }
+end
+
+applyAppearanceToObject = function(obj)
+    local appearance = resolvedAppearance()
+    local roles = ThemeRoleRegistry[obj]
+    if roles and roles.BackgroundColor3 and ThemeSurfaceRoles[roles.BackgroundColor3] and obj:IsA("GuiObject") then
+        local baseTransparency = ThemeBaseTransparency[obj] or 0
+        if baseTransparency < 0.75 then
+            obj.BackgroundTransparency = baseTransparency + ((1 - baseTransparency) * appearance.Transparency)
+            if obj:IsA("Frame") then
+                local gradient = obj:FindFirstChild("ThemeSurfaceGradient")
+                if appearance.Gradient then
+                    if not gradient and obj:FindFirstChildOfClass("UIGradient") then
+                        return
+                    end
+                    if not gradient then
+                        gradient = Instance.new("UIGradient")
+                        gradient.Name = "ThemeSurfaceGradient"
+                        gradient.Rotation = 90
+                        gradient.Parent = obj
+                    end
+                    gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(224, 228, 240))
+                    gradient.Transparency = NumberSequence.new(0.92 - (appearance.Gloss * 0.5), 0.99 - (appearance.Gloss * 0.2))
+                elseif gradient then
+                    gradient:Destroy()
+                end
+            end
+        end
+    elseif obj:IsA("UIStroke") then
+        local base = ThemeStrokeBase[obj]
+        local parentRoles = obj.Parent and ThemeRoleRegistry[obj.Parent]
+        if base and parentRoles and parentRoles.BackgroundColor3 and ThemeSurfaceRoles[parentRoles.BackgroundColor3] then
+            obj.Transparency = math.clamp(base.Transparency - (appearance.Gloss * 0.3), 0, 1)
+            obj.Thickness = base.Thickness + (appearance.Gloss * 0.5)
+        end
+    end
+end
+
+function ThemeEngine.setAppearanceSettings(settings)
+    settings = settings or {}
+    ThemeAppearance.Advanced = settings.Advanced == true
+    ThemeAppearance.Transparency = math.clamp(tonumber(settings.Transparency) or 0.14, 0, 1)
+    ThemeAppearance.Gloss = math.clamp(tonumber(settings.Gloss) or 0.25, 0, 1)
+    ThemeAppearance.Gradient = settings.Gradient ~= false
+    for obj in pairs(ThemeRoleRegistry) do
+        if obj and obj.Parent then applyAppearanceToObject(obj) end
+    end
+    -- Reapply stroke styling after their parent surfaces have been visited.
+    for obj in pairs(ThemeStrokeBase) do
+        if obj and obj.Parent then applyAppearanceToObject(obj) end
+    end
+end
+ThemeEngine.getAppearanceSettings = function()
+    local appearance = resolvedAppearance()
+    return { Advanced = ThemeAppearance.Advanced, Transparency = appearance.Transparency, Gloss = appearance.Gloss, Gradient = appearance.Gradient }
+end
 
 
 --============================================================
