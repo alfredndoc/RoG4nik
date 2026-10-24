@@ -53,10 +53,15 @@ local AI = {
     MaxToolIterations = 4,
     IncludeWorkspace  = false,
     StreamingEnabled = true,
+    ThemeSimple = false,
     ThemeAdvanced = false,
     ThemeTransparency = 0.14,
     ThemeGloss = 0.25,
     ThemeGradient = true,
+    ThemeGradientRotation = 90,
+    ThemeGradientStrength = 0.18,
+    ThemeGradientStartRGB = "255, 255, 255",
+    ThemeGradientEndRGB = "224, 228, 240",
     RequestActive = false,
     CancelRequest = false,
 }
@@ -99,10 +104,16 @@ local function loadSettings()
                 if type(d.CaptureOutput) == "boolean" then AI.CaptureOutput = d.CaptureOutput end
                 if type(d.MaxToolIterations) == "number" then AI.MaxToolIterations = math.clamp(math.floor(d.MaxToolIterations), 1, 10) end
                 if type(d.IncludeWorkspace) == "boolean" then AI.IncludeWorkspace = d.IncludeWorkspace end
+                if type(d.ThemeSimple) == "boolean" then AI.ThemeSimple = d.ThemeSimple end
                 if type(d.ThemeAdvanced) == "boolean" then AI.ThemeAdvanced = d.ThemeAdvanced end
+                if AI.ThemeSimple then AI.ThemeAdvanced = false end
                 if type(d.ThemeTransparency) == "number" then AI.ThemeTransparency = math.clamp(d.ThemeTransparency, 0, 1) end
                 if type(d.ThemeGloss) == "number" then AI.ThemeGloss = math.clamp(d.ThemeGloss, 0, 1) end
                 if type(d.ThemeGradient) == "boolean" then AI.ThemeGradient = d.ThemeGradient end
+                if type(d.ThemeGradientRotation) == "number" then AI.ThemeGradientRotation = math.clamp(math.floor(d.ThemeGradientRotation), 0, 360) end
+                if type(d.ThemeGradientStrength) == "number" then AI.ThemeGradientStrength = math.clamp(d.ThemeGradientStrength, 0, 1) end
+                if type(d.ThemeGradientStartRGB) == "string" then AI.ThemeGradientStartRGB = d.ThemeGradientStartRGB end
+                if type(d.ThemeGradientEndRGB) == "string" then AI.ThemeGradientEndRGB = d.ThemeGradientEndRGB end
                 if d.Theme and Themes[d.Theme] then
                     ThemeEngine.CurrentThemeName = d.Theme
                     ThemeEngine.applyThemePreset(d.Theme)
@@ -128,8 +139,11 @@ saveSettings = function()
                 AutoExecute = AI.AutoExecute, SandboxMode = AI.SandboxMode,
                 CaptureOutput = AI.CaptureOutput, MaxToolIterations = AI.MaxToolIterations,
                 IncludeWorkspace = AI.IncludeWorkspace,
-                ThemeAdvanced = AI.ThemeAdvanced, ThemeTransparency = AI.ThemeTransparency,
-                ThemeGloss = AI.ThemeGloss, ThemeGradient = AI.ThemeGradient,
+                ThemeSimple = AI.ThemeSimple, ThemeAdvanced = AI.ThemeAdvanced,
+                ThemeTransparency = AI.ThemeTransparency, ThemeGloss = AI.ThemeGloss,
+                ThemeGradient = AI.ThemeGradient, ThemeGradientRotation = AI.ThemeGradientRotation,
+                ThemeGradientStrength = AI.ThemeGradientStrength,
+                ThemeGradientStartRGB = AI.ThemeGradientStartRGB, ThemeGradientEndRGB = AI.ThemeGradientEndRGB,
             }))
         end
     end)
