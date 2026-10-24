@@ -7,7 +7,9 @@ local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
 local AISettingsScroll, ThemeSettingsScroll
 local setSettingsTab
 local themeAdvancedControls
-local themeModeButton, themeTransparencyInput, themeGlossInput, themeGradientButton
+local themeSimpleButton, themeAdvancedButton, themeTransparencyInput, themeGlossInput
+local themeGradientButton, themeGradientRotationInput, themeGradientStrengthInput
+local themeGradientStartInput, themeGradientEndInput
 local function refreshThemeControls() end
 do
 SettingsView = create("Frame", {
@@ -220,77 +222,104 @@ end
 
 local function applySavedAppearance()
     ThemeEngine.setAppearanceSettings({
+        Simple = AI.ThemeSimple,
         Advanced = AI.ThemeAdvanced,
         Transparency = AI.ThemeTransparency,
         Gloss = AI.ThemeGloss,
         Gradient = AI.ThemeGradient,
+        GradientRotation = AI.ThemeGradientRotation,
+        GradientStrength = AI.ThemeGradientStrength,
+        GradientStartRGB = AI.ThemeGradientStartRGB,
+        GradientEndRGB = AI.ThemeGradientEndRGB,
     })
     saveSettings()
 end
 
-local appearanceModeRow = create("Frame", {
-    Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
-    LayoutOrder = 3, ZIndex = 7,
-}, AppearanceSection)
-corner(appearanceModeRow, 10)
-stroke(appearanceModeRow, Theme.Border, 1, 0.35)
-create("TextLabel", {
-    Position = UDim2.new(0, 12, 0, 8), Size = UDim2.new(1, -110, 0, 18), BackgroundTransparency = 1,
-    Text = "Advanced appearance", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
-    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
-}, appearanceModeRow)
-create("TextLabel", {
-    Position = UDim2.new(0, 12, 0, 29), Size = UDim2.new(1, -110, 0, 16), BackgroundTransparency = 1,
-    Text = "Simple mode uses the glass theme automatically.", TextColor3 = Theme.QuietText,
-    Font = Theme.Font, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
-}, appearanceModeRow)
-themeModeButton = create("TextButton", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(66, 28),
-    BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg, BorderSizePixel = 0,
-    Text = AI.ThemeAdvanced and "ON" or "OFF", TextColor3 = Theme.PrimaryText,
-    Font = Theme.FontBold, TextSize = 11, AutoButtonColor = false, ZIndex = 8,
-}, appearanceModeRow)
-corner(themeModeButton, 8)
-themeModeButton.MouseButton1Click:Connect(function()
+local function makeAppearanceModeRow(title, subtitle, order)
+    local row = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 56), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
+        LayoutOrder = order, ZIndex = 7,
+    }, AppearanceSection)
+    corner(row, 10)
+    stroke(row, Theme.Border, 1, 0.35)
+    create("TextLabel", {
+        Position = UDim2.new(0, 12, 0, 8), Size = UDim2.new(1, -110, 0, 18), BackgroundTransparency = 1,
+        Text = title, TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+    }, row)
+    create("TextLabel", {
+        Position = UDim2.new(0, 12, 0, 29), Size = UDim2.new(1, -110, 0, 16), BackgroundTransparency = 1,
+        Text = subtitle, TextColor3 = Theme.QuietText, Font = Theme.Font, TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+    }, row)
+    local button = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(66, 28),
+        BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, Text = "OFF",
+        TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 11,
+        AutoButtonColor = false, ZIndex = 8,
+    }, row)
+    corner(button, 8)
+    return button
+end
+
+themeSimpleButton = makeAppearanceModeRow("Simple appearance", "Apply the glass look with one setting.", 3)
+themeAdvancedButton = makeAppearanceModeRow("Advanced appearance", "Customize glass, gloss, gradients, and colors.", 4)
+themeSimpleButton.MouseButton1Click:Connect(function()
+    AI.ThemeSimple = not AI.ThemeSimple
+    if AI.ThemeSimple then AI.ThemeAdvanced = false end
+    refreshThemeControls()
+    applySavedAppearance()
+end)
+themeAdvancedButton.MouseButton1Click:Connect(function()
     AI.ThemeAdvanced = not AI.ThemeAdvanced
+    if AI.ThemeAdvanced then AI.ThemeSimple = false end
     refreshThemeControls()
     applySavedAppearance()
 end)
 
 themeAdvancedControls = create("Frame", {
-    Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 150 or 0), BackgroundTransparency = 1, LayoutOrder = 4,
+    Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 280 or 0), BackgroundTransparency = 1, LayoutOrder = 5,
     Visible = AI.ThemeAdvanced, ZIndex = 7,
 }, AppearanceSection)
 create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, themeAdvancedControls)
-local function makePercentInput(title, value, order)
+local function makeAppearanceInput(title, value, order, placeholder)
     local row = create("Frame", { Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7 }, themeAdvancedControls)
-    makeAppearanceLabel(title, 1, row).Size = UDim2.new(1, -80, 1, 0)
+    makeAppearanceLabel(title, 1, row).Size = UDim2.new(1, -105, 1, 0)
     local input = create("TextBox", {
-        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(64, 28),
-        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = tostring(math.floor(value * 100 + 0.5)),
-        TextColor3 = Theme.PrimaryText, PlaceholderText = "0–100", Font = Theme.FontCode, TextSize = 12,
-        ClearTextOnFocus = false, ZIndex = 8,
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(92, 28),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = tostring(value),
+        TextColor3 = Theme.PrimaryText, PlaceholderText = placeholder or "Enter value",
+        Font = Theme.FontCode, TextSize = 11, ClearTextOnFocus = false, ZIndex = 8,
     }, row)
     corner(input, 7)
     stroke(input, Theme.Border, 1, 0.45)
     return input
 end
-themeTransparencyInput = makePercentInput("Transparency (%)", AI.ThemeTransparency, 1)
-themeGlossInput = makePercentInput("Gloss (%)", AI.ThemeGloss, 2)
-local gradientRow = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 7 }, themeAdvancedControls)
-makeAppearanceLabel("Gradient", 1, gradientRow).Size = UDim2.new(1, -80, 1, 0)
-themeGradientButton = create("TextButton", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(64, 26),
-    BackgroundColor3 = AI.ThemeGradient and Theme.Accent or Theme.SegmentedBg, BorderSizePixel = 0,
-    Text = AI.ThemeGradient and "ON" or "OFF", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
-    TextSize = 11, AutoButtonColor = false, ZIndex = 8,
-}, gradientRow)
-corner(themeGradientButton, 7)
+local function makeGradientToggle(order)
+    local row = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7 }, themeAdvancedControls)
+    makeAppearanceLabel("Gradient", 1, row).Size = UDim2.new(1, -105, 1, 0)
+    local button = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(92, 26),
+        BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, Text = "OFF", TextColor3 = Theme.PrimaryText,
+        Font = Theme.FontBold, TextSize = 11, AutoButtonColor = false, ZIndex = 8,
+    }, row)
+    corner(button, 7)
+    return button
+end
+
+themeTransparencyInput = makeAppearanceInput("Transparency (%)", math.floor(AI.ThemeTransparency * 100 + 0.5), 1, "0–100")
+themeGlossInput = makeAppearanceInput("Gloss (%)", math.floor(AI.ThemeGloss * 100 + 0.5), 2, "0–100")
+themeGradientButton = makeGradientToggle(3)
+themeGradientRotationInput = makeAppearanceInput("Gradient direction (°)", AI.ThemeGradientRotation, 4, "0–360")
+themeGradientStrengthInput = makeAppearanceInput("Gradient strength (%)", math.floor(AI.ThemeGradientStrength * 100 + 0.5), 5, "0–100")
+themeGradientStartInput = makeAppearanceInput("Gradient start RGB", AI.ThemeGradientStartRGB, 6, "255, 255, 255")
+themeGradientEndInput = makeAppearanceInput("Gradient end RGB", AI.ThemeGradientEndRGB, 7, "224, 228, 240")
 themeGradientButton.MouseButton1Click:Connect(function()
     AI.ThemeGradient = not AI.ThemeGradient
     refreshThemeControls()
     applySavedAppearance()
 end)
+
 local function bindPercentInput(input, key)
     input.FocusLost:Connect(function()
         local value = tonumber(input.Text)
@@ -302,15 +331,44 @@ local function bindPercentInput(input, key)
 end
 bindPercentInput(themeTransparencyInput, "ThemeTransparency")
 bindPercentInput(themeGlossInput, "ThemeGloss")
+bindPercentInput(themeGradientStrengthInput, "ThemeGradientStrength")
+themeGradientRotationInput.FocusLost:Connect(function()
+    local value = tonumber(themeGradientRotationInput.Text) or AI.ThemeGradientRotation
+    AI.ThemeGradientRotation = math.clamp(math.floor(value), 0, 360)
+    themeGradientRotationInput.Text = tostring(AI.ThemeGradientRotation)
+    applySavedAppearance()
+end)
+local function bindRgbInput(input, key)
+    input.FocusLost:Connect(function()
+        local red, green, blue = input.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
+        if red then
+            AI[key] = ("%d, %d, %d"):format(
+                math.clamp(tonumber(red), 0, 255),
+                math.clamp(tonumber(green), 0, 255),
+                math.clamp(tonumber(blue), 0, 255)
+            )
+        end
+        input.Text = AI[key]
+        applySavedAppearance()
+    end)
+end
+bindRgbInput(themeGradientStartInput, "ThemeGradientStartRGB")
+bindRgbInput(themeGradientEndInput, "ThemeGradientEndRGB")
 refreshThemeControls = function()
     themeAdvancedControls.Visible = AI.ThemeAdvanced
-    themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 150 or 0)
-    themeModeButton.Text = AI.ThemeAdvanced and "ON" or "OFF"
-    themeModeButton.BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg
+    themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 280 or 0)
+    themeSimpleButton.Text = AI.ThemeSimple and "ON" or "OFF"
+    themeSimpleButton.BackgroundColor3 = AI.ThemeSimple and Theme.Accent or Theme.SegmentedBg
+    themeAdvancedButton.Text = AI.ThemeAdvanced and "ON" or "OFF"
+    themeAdvancedButton.BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg
     themeGradientButton.Text = AI.ThemeGradient and "ON" or "OFF"
     themeGradientButton.BackgroundColor3 = AI.ThemeGradient and Theme.Accent or Theme.SegmentedBg
     themeTransparencyInput.Text = tostring(math.floor(AI.ThemeTransparency * 100 + 0.5))
     themeGlossInput.Text = tostring(math.floor(AI.ThemeGloss * 100 + 0.5))
+    themeGradientRotationInput.Text = tostring(AI.ThemeGradientRotation)
+    themeGradientStrengthInput.Text = tostring(math.floor(AI.ThemeGradientStrength * 100 + 0.5))
+    themeGradientStartInput.Text = AI.ThemeGradientStartRGB
+    themeGradientEndInput.Text = AI.ThemeGradientEndRGB
 end
 refreshThemeControls()
 applySavedAppearance()
