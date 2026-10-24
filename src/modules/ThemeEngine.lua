@@ -82,7 +82,8 @@ local ThemeAppearance = {
 }
 local ThemeSurfaceRoles = {
     Background = true, Sidebar = true, Panel = true, PanelRaised = true, RightBg = true,
-    Selected = true, SegmentedBg = true,
+    Hover = true, Selected = true, Accent = true, AccentHover = true, AccentSoft = true,
+    SegmentedBg = true,
 }
 local function applyAppearanceToObject(obj) end
 local ThemeColorProperties = {
@@ -236,17 +237,28 @@ local function parseAppearanceRgb(value, fallback)
     )
 end
 
+local function parseAppearanceRgb(value, fallback)
+    local red, green, blue = tostring(value or ""):match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
+    if not red then return fallback end
+    return Color3.fromRGB(
+        math.clamp(tonumber(red), 0, 255),
+        math.clamp(tonumber(green), 0, 255),
+        math.clamp(tonumber(blue), 0, 255)
+    )
+end
+
 local function resolvedAppearance()
     if ThemeAppearance.Simple then
         return {
-            Transparency = 0.14, Gloss = 0.25, Gradient = true,
-            GradientRotation = 90, GradientStrength = 0.18,
+            Glass = true, Transparency = 0.08, Gloss = 0.55, Gradient = false,
+            GradientRotation = 90, GradientStrength = 0,
             GradientStart = Color3.new(1, 1, 1), GradientEnd = Color3.fromRGB(224, 228, 240),
         }
     elseif ThemeAppearance.Advanced then
         return {
-            Transparency = math.clamp(tonumber(ThemeAppearance.Transparency) or 0.14, 0, 1),
-            Gloss = math.clamp(tonumber(ThemeAppearance.Gloss) or 0.25, 0, 1),
+            Glass = ThemeAppearance.Glass == true,
+            Transparency = ThemeAppearance.Glass and math.clamp(tonumber(ThemeAppearance.Transparency) or 0.1, 0, 1) or 0,
+            Gloss = ThemeAppearance.Glass and math.clamp(tonumber(ThemeAppearance.Gloss) or 0.35, 0, 1) or 0,
             Gradient = ThemeAppearance.Gradient == true,
             GradientRotation = math.clamp(math.floor(tonumber(ThemeAppearance.GradientRotation) or 90), 0, 360),
             GradientStrength = math.clamp(tonumber(ThemeAppearance.GradientStrength) or 0.18, 0, 1),
@@ -254,7 +266,37 @@ local function resolvedAppearance()
             GradientEnd = parseAppearanceRgb(ThemeAppearance.GradientEndRGB, Color3.fromRGB(224, 228, 240)),
         }
     end
-    return { Transparency = 0, Gloss = 0, Gradient = false }
+    return { Glass = false, Transparency = 0, Gloss = 0, Gradient = false }
+end
+
+local function updateGlassEdge(obj, appearance)
+    local edge = obj:FindFirstChild("ThemeGlassStroke")
+    if not appearance.Glass then
+        if edge then edge:Destroy() end
+        return
+    end
+    local function styleEdge(strokeObject)
+        local currentAppearance = resolvedAppearance()
+        strokeObject.Color = Theme.Border
+        strokeObject.Thickness = 1
+        strokeObject.Transparency = math.clamp(0.75 - (currentAppearance.Gloss * 0.45), 0.2, 0.9)
+    end
+    if edge then
+        styleEdge(edge)
+    elseif not obj:FindFirstChildOfClass("UIStroke") then
+        -- Wait one scheduler turn so a control's explicit border can be created first.
+        task.defer(function()
+            if not obj.Parent or not resolvedAppearance().Glass or obj:FindFirstChildOfClass("UIStroke") then return end
+            if obj.AbsoluteSize.X < 28 or obj.AbsoluteSize.Y < 20 then return end
+            local glassStroke = Instance.new("UIStroke")
+            glassStroke.Name = "ThemeGlassStroke"
+            glassStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            glassStroke.Parent = obj
+            ThemeStrokeBase[glassStroke] = { Transparency = 0.75, Thickness = 1 }
+            ThemeRoleRegistry[glassStroke] = { Color = "Border" }
+            styleEdge(glassStroke)
+        end)
+    end
 end
 
 applyAppearanceToObject = function(obj)
@@ -264,6 +306,7 @@ applyAppearanceToObject = function(obj)
         local baseTransparency = ThemeBaseTransparency[obj] or 0
         if baseTransparency < 0.75 then
             obj.BackgroundTransparency = baseTransparency + ((1 - baseTransparency) * appearance.Transparency)
+            updateGlassEdge(obj, appearance)
             if obj:IsA("Frame") then
                 local gradient = obj:FindFirstChild("ThemeSurfaceGradient")
                 if appearance.Gradient then
@@ -298,8 +341,9 @@ function ThemeEngine.setAppearanceSettings(settings)
     settings = settings or {}
     ThemeAppearance.Simple = settings.Simple == true
     ThemeAppearance.Advanced = settings.Advanced == true and not ThemeAppearance.Simple
-    ThemeAppearance.Transparency = math.clamp(tonumber(settings.Transparency) or 0.14, 0, 1)
-    ThemeAppearance.Gloss = math.clamp(tonumber(settings.Gloss) or 0.25, 0, 1)
+    ThemeAppearance.Glass = settings.Glass == true
+    ThemeAppearance.Transparency = math.clamp(tonumber(settings.Transparency) or 0.1, 0, 1)
+    ThemeAppearance.Gloss = math.clamp(tonumber(settings.Gloss) or 0.35, 0, 1)
     ThemeAppearance.Gradient = settings.Gradient ~= false
     ThemeAppearance.GradientRotation = math.clamp(math.floor(tonumber(settings.GradientRotation) or 90), 0, 360)
     ThemeAppearance.GradientStrength = math.clamp(tonumber(settings.GradientStrength) or 0.18, 0, 1)
@@ -316,7 +360,7 @@ end
 ThemeEngine.getAppearanceSettings = function()
     local appearance = resolvedAppearance()
     return {
-        Simple = ThemeAppearance.Simple, Advanced = ThemeAppearance.Advanced,
+        Simple = ThemeAppearance.Simple, Advanced = ThemeAppearance.Advanced, Glass = appearance.Glass,
         Transparency = appearance.Transparency, Gloss = appearance.Gloss, Gradient = appearance.Gradient,
         GradientRotation = appearance.GradientRotation, GradientStrength = appearance.GradientStrength,
         GradientStartRGB = ThemeAppearance.GradientStartRGB, GradientEndRGB = ThemeAppearance.GradientEndRGB,
