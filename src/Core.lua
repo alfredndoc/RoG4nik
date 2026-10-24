@@ -502,10 +502,11 @@ corner(CodeToolbar, 13)
 local CodeToolbarDivider = create("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Theme.Border, BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 5 }, CodeToolbar)
 padding(CodeToolbar, 12, 12, 0, 0)
 
-ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,0,0,7), Size=UDim2.new(0.32,-6,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+-- Added TextTruncate & ClipsDescendants to stop text overflowing
+ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,0,0,7), Size=UDim2.new(0.32,-6,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, TextTruncate=Enum.TextTruncate.AtEnd, ClipsDescendants=true, ZIndex=6}, CodeToolbar)
 corner(ScriptUI.NameBox,8); stroke(ScriptUI.NameBox,Theme.Border,1,0.15); padding(ScriptUI.NameBox,10,8,0,0)
 
-ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0.32,2,0,7), Size=UDim2.new(0.32,-8,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, ZIndex=6}, CodeToolbar)
+ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0.32,2,0,7), Size=UDim2.new(0.32,-8,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, TextTruncate=Enum.TextTruncate.AtEnd, ClipsDescendants=true, ZIndex=6}, CodeToolbar)
 corner(ScriptUI.DescriptionBox,8); stroke(ScriptUI.DescriptionBox,Theme.Border,1,0.15); padding(ScriptUI.DescriptionBox,10,8,0,0)
 
 -- Save As (Blue)
@@ -1106,11 +1107,7 @@ local function performMenuAction(index)
         if index == 1 and createNewConversation then createNewConversation()
         elseif index == 2 then
             activeView = "settings"
-            if SettingsView then SettingsView.Visible = true end
-            if ChatDisplay then ChatDisplay.Visible = false end
-            if EmptyChatLabel then EmptyChatLabel.Visible = false end
-            if InputBar then InputBar.Visible = false end
-            if CodeEditorFrame then CodeEditorFrame.Visible = false end
+            AI.UpdateUIForTab(activeTab) -- Fixed: unified view toggling
             if ChatTitle then ChatTitle.Text = "Settings" end
             if ChatSub then ChatSub.Text = "Customize your workspace" end
         elseif index == 3 then ScreenGui.Enabled = false end
