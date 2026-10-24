@@ -1,0 +1,29 @@
+# Dr4gonik Hub — module manifest
+
+Base source SHA-256 before this refactor:
+b86fb1b4649433394fdd099db86ee8adb1d152c1af4fd59a4b57aee28b370797
+
+This package intentionally differs from the original byte-for-byte: theme state and shared helpers were moved into ThemeEngine.lua, free CurrentThemeName references were namespaced, and boot settings now silently apply the saved theme preset.
+
+## Module ownership
+
+- Themes.lua: preset palettes + theme order/display names only.
+- ThemeEngine.lua: ThemeEngine.CurrentThemeName, mutable Theme table, RuntimeDiagnostics, ThemeDebug, pathOf, debugTrace, color-role registry/resolution, transition logic, applyThemePreset, and shared UI helper functions.
+- SystemPrompt.lua: hidden system prompt and prompt builder.
+- Sandbox.lua: sandbox, script library, and workspace inspector.
+- SettingsView.lua: settings UI.
+- Markdown.lua: Markdown and code rendering.
+- Messages.lua: message/conversation UI.
+- AIRequest.lua: AI HTTP request and tool loop.
+
+## Static validation
+
+PASS — each of the eight module markers exists exactly once.
+PASS — all module markers resolve when assembled; no unresolved markers remain.
+PASS — ThemeEngine is inserted after Themes and before loadSettings.
+PASS — saveSettings is forward-declared before ThemeEngine and assigned later.
+PASS — loadSettings assigns ThemeEngine.CurrentThemeName and calls applyThemePreset.
+PASS — Themes.lua contains no RuntimeDiagnostics, ThemeDebug, CurrentThemeName, or mutable Theme table.
+PASS — pathOf, debugTrace, create, tween, corner, stroke, padding, bindSoftButton, styleScrollBar, createHubGlyph, and setTheme are defined in ThemeEngine.lua.
+
+Runtime/Roblox compile validation was not available in this environment.
