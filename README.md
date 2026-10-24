@@ -1,39 +1,21 @@
-# Dr4gonik Hub — GitHub module split
+**Dr4gonik Hub** is an advanced, AI-powered software overlay and script executor designed specifically for Roblox. It operates as a fully functional, draggable desktop-style window inside the game, acting as a personal AI coding assistant and a powerful Lua execution environment. 
 
-This package splits the supplied `Dr4gonik Hub — Premium Desktop UI v3` source into eight ordered source fragments. The refactor keeps the shared lexical scope by placing each module's source at its marker in `src/Core.lua` before compiling the combined chunk.
+Instead of relying on external software to write and test scripts, this tool brings the entire workflow into one unified interface.
 
-## Files
+### What it does:
+*   **AI-Powered Scripting:** It integrates with major AI APIs (DeepSeek, OpenAI, Gemini, Groq, etc.). You can chat with the AI to generate code, fix errors, or explain how the game works.
+*   **Automated Tool-Loop (Auto-Execution):** The AI doesn't just show you code; it can run it. By using special tags (like `[EXECUTE]`), the AI writes a script, the hub runs it in the game, captures the output/errors, and feeds the results back to the AI so it can adjust its approach in real-time.
+*   **Sandbox Environment:** It includes a built-in code editor equipped with a safe execution sandbox. It captures `print()` and `warn()` outputs so you can debug scripts visually without needing to check the developer console.
+*   **Rich Chat Interface:** The UI renders AI responses using Markdown. It supports syntax highlighting, and automatically generates code blocks with interactive **"Copy"** and **"Run"** buttons.
+*   **Session & Script Persistence:** It uses the executor's file system to save your API keys, custom themes, chat histories, and written scripts, ensuring you don't lose your work when you leave the game.
+*   **Dynamic Theme Engine:** A highly optimized UI engine that smoothly animates color transitions across every element of the interface (Dark, Light, Blue, and Midnight modes) without lag.
 
-- `loader.lua` — downloads `src/Core.lua` and all eight fragments from GitHub, resolves the source markers, compiles the combined script, and runs it.
-- `src/Core.lua` — main UI / application code with eight module markers.
-- `src/modules/Themes.lua` — pure preset and theme-display data (`Dark`, `White`, `Blue`, `MidnightBlue`).
-- `src/modules/ThemeEngine.lua` — mutable theme state, `Theme`, `RuntimeDiagnostics`, `ThemeDebug`, `pathOf`, `debugTrace`, theme resolution/transition code, and shared UI helpers (`create`, `tween`, `corner`, `stroke`, `padding`, `bindSoftButton`, `styleScrollBar`, and `createHubGlyph`). It also exposes `ThemeEngine.applyThemePreset(name)` for a silent boot-time palette swap.
-- `src/modules/SystemPrompt.lua` — system prompt and prompt builder.
-- `src/modules/Sandbox.lua` — sandbox execution and script/workspace helpers.
-- `src/modules/SettingsView.lua` — settings interface and controls.
-- `src/modules/Markdown.lua` — Markdown rendering helpers.
-- `src/modules/Messages.lua` — message rendering and conversation helpers.
-- `src/modules/AIRequest.lua` — AI request and tool-loop logic.
+### How the GitHub version works:
+Because the original application is a massive 4,000+ line monolith that is difficult to maintain, it has been split into this modular GitHub package. 
+*   The `loader.lua` script acts as a downloader. 
+*   When executed, it fetches the main `Core.lua` file and eight separate module files (Themes, Sandbox, AI logic, etc.) from GitHub.
+*   It stitches the separate files back together in memory using marker tags, and compiles them into a single, unified script before launching the UI. This allows developers to edit specific features (like adding a new AI provider or fixing a UI bug) in small, 50-line files without having to scroll through 4,000 lines of code.
 
-## Setup
-
-1. Create a GitHub repository.
-2. Upload `loader.lua` and the entire `src/` folder, retaining the folder structure shown above.
-3. Open `loader.lua` and replace `YOUR_GITHUB_USERNAME/YOUR_REPOSITORY` in `RAW_BASE` with your GitHub username and repository name. Keep the branch name (`main`) consistent with your repo.
-4. Run the edited loader in the same executor/runtime used by the original script.
-
-The loader downloads the source at launch. Push edits to GitHub and the next launch fetches the current version.
-
-## Important design note
-
-These files are **ordered source fragments**, not independent Roblox `ModuleScript`s. The app relies on shared Lua `local` variables and functions, so the loader injects each fragment at its corresponding marker and compiles the assembled source as one chunk. Do not call these files individually with `require()`; start with `loader.lua`.
-
-`ThemeEngine.lua` is inserted immediately after `Themes.lua`, before `loadSettings()` runs. `saveSettings` is forward-declared before the theme engine so `setTheme` can call it after startup. During startup, `loadSettings()` writes the saved name to `ThemeEngine.CurrentThemeName` and calls `ThemeEngine.applyThemePreset()` to update the mutable palette without running an animation or writing settings again.
-
-## Runtime requirements
-
-The original script uses the same runtime capabilities as before, including `game:HttpGet`, `loadstring`, and (where supported) executor HTTP/file APIs. This split does not add compatibility for runtimes that lack those capabilities.
-
-## Validation notes
-
-The package was statically checked for all eight unique markers, successful source-fragment assembly without unresolved markers, and correct theme-state/helper ownership. The assembled Luau code has **not** been executed inside Roblox or a Roblox executor from this environment.
+### Requirements:
+*   A Roblox executor with `loadstring`, `game:HttpGet`, and file I/O capabilities (e.g., `writefile`, `readfile`).
+*   An API key from an AI provider (like DeepSeek or OpenAI).
