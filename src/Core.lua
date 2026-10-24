@@ -177,7 +177,7 @@ stroke(MainFrame, Theme.Border, 1, 0.15)
 
 local ThemeTransitionOverlay = create("Frame", {
     Name = "ThemeTransitionOverlay", Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Theme.Background, BackgroundTransparency = 1,
+    BackgroundColor3 = Theme.Background, BackgroundTransparency = 1, Visible = false,
     BorderSizePixel = 0, Active = false, Selectable = false, ZIndex = 200,
 }, MainFrame)
 corner(ThemeTransitionOverlay, 16)
