@@ -8,7 +8,7 @@ This package intentionally differs from the original byte-for-byte: theme state 
 ## Module ownership
 
 - Themes.lua: preset palettes + theme order/display names only.
-- ThemeEngine.lua: ThemeEngine.CurrentThemeName, mutable Theme table, RuntimeDiagnostics, ThemeDebug, pathOf, debugTrace, color-role registry/resolution, transition logic, applyThemePreset, and shared UI helper functions.
+- ThemeEngine.lua: ThemeEngine.CurrentThemeName, mutable Theme table, RuntimeDiagnostics, ThemeDebug, pathOf, debugTrace, color-role registry/resolution, transition logic, appearance styling, applyThemePreset, and shared UI helper functions.
 - SystemPrompt.lua: hidden system prompt and prompt builder.
 - Sandbox.lua: sandbox, script library, and workspace inspector.
 - SettingsView.lua: settings UI.
@@ -44,3 +44,10 @@ Static checks passed for settings persistence, toggle/reset wiring, disabled-pat
 - Large theme changes apply colors once and use the lightweight transition overlay for animation, avoiding a full color-property sweep on every render update. Small changes retain per-property interpolation.
 - The transition overlay starts hidden and is explicitly hidden when a switch finishes, preventing its gradient from leaving a visible remnant.
 - Window dragging preserves the original scale-based position and applies pointer deltas, avoiding a coordinate-space conversion on pointer-down. The window snaps to the final target on release.
+
+## Settings and theme updates
+
+- Settings are separated into AI Settings and Theme Settings tabs, each with its own scrolling area.
+- Theme preferences persist Advanced mode, transparency, gloss, and gradient settings. Simple mode uses the glass appearance by default.
+- Added Red and Cursor Black theme presets.
+- ThemeEngine applies the glass surface treatment to existing and newly created theme surfaces.
