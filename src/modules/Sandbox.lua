@@ -246,7 +246,7 @@ local function buildSandboxEnv(captured)
                 if existsOk and exists then
                     local readOk, raw = pcall(readFn, notesPath)
                     if readOk and type(raw) == "string" and raw ~= "" then
-                        local decodeOk, decoded = pcall(function() return HttpService:JSONDecode(raw) end)
+                        local decodeOk, decoded = pcall(function() return UIRefs.HttpService:JSONDecode(raw) end)
                         if decodeOk and type(decoded) == "table" then all = decoded end
                     end
                 end
@@ -267,7 +267,7 @@ local function buildSandboxEnv(captured)
         local makeFolderFn = type(makefolder) == "function" and makefolder or baseEnv.makefolder
         if type(writeFn) == "function" then
             pcall(function() if type(makeFolderFn) == "function" then makeFolderFn("Dr4gonikHub") end end)
-            local encodeOk, encoded = pcall(function() return HttpService:JSONEncode(all) end)
+            local encodeOk, encoded = pcall(function() return UIRefs.HttpService:JSONEncode(all) end)
             if encodeOk then saved = pcall(writeFn, notesPath, encoded) end
         end
         return true, saved and "Note saved to disk." or "Note saved in this session; file writing is unavailable or failed."

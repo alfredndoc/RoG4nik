@@ -6,13 +6,10 @@ local setEffortIndex
 local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
 do
 SettingsView = create("ScrollingFrame", {
-    Name = "SettingsView", Position = UDim2.new(0, 0, 0, CHAT_TOP),
-    Size = UDim2.new(1, 0, 1, -(CHAT_TOP + CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
     Name = "SettingsView", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
     BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.Y,
     AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), Visible = false, ZIndex = 5,
-}, Content)
 }, UIRefs.Content)
 styleScrollBar(SettingsView)
 create("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder }, SettingsView)
@@ -46,7 +43,6 @@ corner(ThemeDropdownBtn, 10)
 padding(ThemeDropdownBtn, 12, 36, 0, 0)
 stroke(ThemeDropdownBtn, Theme.Border, 1, 0.4)
 local ThemeChevron = create("TextLabel", {
-    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 56, 0.5, 0),
     AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, ThemeEngine.DropdownChevronOffset, 0.5, 0),
     Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
     Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
@@ -56,13 +52,11 @@ corner(ThemeChevron, 8)
 local ThemeDropdownBackdrop = create("TextButton", {
     Name = "ThemeDropdownBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
     Text = "", AutoButtonColor = false, Visible = false, ZIndex = 90,
-}, MainFrame)
 }, UIRefs.MainFrame)
 
 local ThemeDropdownMenu = create("Frame", {
     Name = "ThemeDropdownMenu", Size = UDim2.fromOffset(200, 0), BackgroundColor3 = Theme.PanelRaised,
     BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 100,
-}, MainFrame)
 }, UIRefs.MainFrame)
 corner(ThemeDropdownMenu, 10)
 stroke(ThemeDropdownMenu, Theme.Border, 1, 0.05)
@@ -135,7 +129,6 @@ local function openThemeDropdown()
     tween(ThemeChevron, { Rotation = 180 }, 0.2, Enum.EasingStyle.Quint)
     local absPos = ThemeDropdownBtn.AbsolutePosition
     local absSize = ThemeDropdownBtn.AbsoluteSize
-    local mainAbsPos = MainFrame.AbsolutePosition
     local mainAbsPos = UIRefs.MainFrame.AbsolutePosition
     ThemeDropdownMenu.Position = UDim2.fromOffset(absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 4)
     ThemeDropdownMenu.Size = UDim2.fromOffset(absSize.X, 0)
@@ -246,8 +239,6 @@ end
 local function chooseProvider(prov)
     AI.Provider = prov
     if prov ~= "Custom" then
-        AI.Endpoint = ProviderPresets[prov].endpoint
-        AI.Model = ProviderPresets[prov].models[1]
         AI.Endpoint = UIRefs.ProviderPresets[prov].endpoint
         AI.Model = UIRefs.ProviderPresets[prov].models[1]
     else
@@ -540,7 +531,6 @@ bindSoftButton(RefreshDebugButton, { BackgroundColor3 = Theme.Hover }, 1.02)
 
 local function refreshRuntimeDiagnostics()
     local lines = {}
-    lines[#lines + 1] = "Context: " .. (RunService:IsClient() and "client LocalScript" or "server Script")
     lines[#lines + 1] = "Context: " .. (UIRefs.RunService:IsClient() and "client LocalScript" or "server Script")
     lines[#lines + 1] = "Theme: " .. ThemeEngine.CurrentThemeName ..
         " · switches: " .. tostring(RuntimeDiagnostics.ThemeSwitchCount) ..

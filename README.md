@@ -8,6 +8,7 @@ Instead of relying on external software to write and test scripts, this tool bri
 *   **Sandbox Environment:** It includes a built-in code editor equipped with a safe execution sandbox. It captures `print()` and `warn()` outputs so you can debug scripts visually without needing to check the developer console.
 *   **Rich Chat Interface:** The UI renders AI responses using Markdown. It supports syntax highlighting, and automatically generates code blocks with interactive **"Copy"** and **"Run"** buttons.
 *   **Session & Script Persistence:** It uses the executor's file system to save your API keys, custom themes, chat histories, and written scripts, ensuring you don't lose your work when you leave the game.
+*   **Conversation Summarization:** Older context is summarized at the configured message limit and checkpointed per conversation. Turn on “Disable conversation summarization” in Settings to prevent automatic summary requests.
 *   **Dynamic Theme Engine:** A highly optimized UI engine that smoothly animates color transitions across every element of the interface (Dark, Light, Blue, and Midnight modes) without lag.
  
 

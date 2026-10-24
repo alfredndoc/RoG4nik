@@ -27,3 +27,20 @@ PASS — Themes.lua contains no RuntimeDiagnostics, ThemeDebug, CurrentThemeName
 PASS — pathOf, debugTrace, create, tween, corner, stroke, padding, bindSoftButton, styleScrollBar, createHubGlyph, and setTheme are defined in ThemeEngine.lua.
 
 Runtime/Roblox compile validation was not available in this environment.
+
+## Conversation summarization fix
+
+- `DisableSummarization` defaults to `false` and is loaded from and saved to `DeepSeekSettings.json`.
+- Settings exposes a “Disable conversation summarization” toggle; restoring defaults turns summarization back on.
+- Disabled summarization returns the original request messages without making an auxiliary AI request.
+- Successful compaction stores a per-conversation summary and history boundary in `DeepSeekConversations.json`, so later prompts continue from the saved summary instead of summarizing the entire history again.
+- Conversation loading restores the summary checkpoint, and the generated `src/Core.lua` contains all updated modules.
+
+Static checks passed for settings persistence, toggle/reset wiring, disabled-path bypass, checkpoint save/load, summary-boundary advancement, module-marker assembly, and `git diff --check`. Roblox runtime execution was not available.
+
+## Theme and drag responsiveness
+
+- Theme updates scan current descendant colors once so dynamically recolored controls are included even when their color changed after construction.
+- Large theme changes apply colors once and use the lightweight transition overlay for animation, avoiding a full color-property sweep on every render update. Small changes retain per-property interpolation.
+- The transition overlay starts hidden and is explicitly hidden when a switch finishes, preventing its gradient from leaving a visible remnant.
+- Window dragging preserves the original scale-based position and applies pointer deltas, avoiding a coordinate-space conversion on pointer-down. The window snaps to the final target on release.
