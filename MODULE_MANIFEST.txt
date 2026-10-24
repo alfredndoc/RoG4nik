@@ -40,7 +40,8 @@ Static checks passed for settings persistence, toggle/reset wiring, disabled-pat
 
 ## Theme and drag responsiveness
 
-- Theme updates scan current descendant colors once so dynamically recolored controls are included even when their color changed after construction.
+- Theme updates scan current descendant colors once so dynamically recolored controls are included even when their color changed after construction. Intentional custom colors are excluded from missed-role warnings; warnings are reserved for a registered role absent from a preset.
+- Theme transitions use a slower Sine in/out curve for a softer, more organic change.
 - Large theme changes apply colors once and use the lightweight transition overlay for animation, avoiding a full color-property sweep on every render update. Small changes retain per-property interpolation.
 - The transition overlay starts hidden and is explicitly hidden when a switch finishes, preventing its gradient from leaving a visible remnant.
 - Window dragging preserves the original scale-based position and applies pointer deltas, avoiding a coordinate-space conversion on pointer-down. The window snaps to the final target on release.
