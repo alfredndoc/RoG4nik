@@ -353,12 +353,14 @@ end
 addToggleRow(BehaviorSection, "Send on Enter", "Press Enter to send a message.", "EnterToSend", 2)
 addToggleRow(BehaviorSection, "Auto-scroll chat", "Keep the newest message in view.", "AutoScroll", 3)
 addToggleRow(BehaviorSection, "Save conversation history", "Uses local file storage when supported.", "SaveHistory", 4)
+addToggleRow(BehaviorSection, "Disable conversation summarization",
+    "Never send automatic requests to summarize older chat context.", "DisableSummarization", 5)
 addToggleRow(BehaviorSection, "Auto-execute AI [EXECUTE] blocks",
-    "Only tagged code runs. Untagged blocks just display.", "AutoExecute", 5)
+    "Only tagged code runs. Untagged blocks just display.", "AutoExecute", 6)
 addToggleRow(BehaviorSection, "Sandbox output capture",
-    "Capture print/warn inside [EXECUTE] blocks.", "CaptureOutput", 6)
+    "Capture print/warn inside [EXECUTE] blocks.", "CaptureOutput", 7)
 addToggleRow(BehaviorSection, "Include workspace snapshot",
-    "Inject workspace tree into every request.", "IncludeWorkspace", 7)
+    "Inject workspace tree into every request.", "IncludeWorkspace", 8)
 
 -- Diagnostics
 local DiagnosticsSection = makeSection("Debug & diagnostics", 9)
@@ -464,7 +466,7 @@ stroke(ResetButton, Theme.Border, 1, 0.4)
 bindSoftButton(ResetButton, { BackgroundColor3 = Theme.Hover }, 1.02)
 ResetButton.MouseButton1Click:Connect(function()
     AI.Temperature = 0.7; AI.MaxTokens = 1024; AI.ContextMessages = 30; AI.RequestTimeout = 45
-    AI.SystemPrompt = ""; AI.SaveHistory = true; AI.EnterToSend = true; AI.AutoScroll = true
+    AI.SystemPrompt = ""; AI.SaveHistory = true; AI.DisableSummarization = false; AI.EnterToSend = true; AI.AutoScroll = true
     AI.AutoExecute = true; AI.CaptureOutput = true; AI.IncludeWorkspace = false
     AI.MaxToolIterations = 4; AI.Effort = "Medium"
     TemperatureInput.Text = tostring(AI.Temperature)
