@@ -1,491 +1,636 @@
 --============================================================
---// THEME ENGINE STATE / DIAGNOSTICS
+--// SETTINGS VIEW
 --============================================================
-local ThemeEngine = {
-    CurrentThemeName = "Dark",
-    DropdownChevronOffset = 21,
-}
+local SettingsView
+local setEffortIndex
+local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
+do
+SettingsView = create("ScrollingFrame", {
+    Name = "SettingsView", Position = UDim2.new(0, 0, 0, CHAT_TOP),
+    Size = UDim2.new(1, 0, 1, -(CHAT_TOP + CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
+    Name = "SettingsView", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
+    Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
+    BorderSizePixel = 0, ScrollingDirection = Enum.ScrollingDirection.Y,
+    AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), Visible = false, ZIndex = 5,
+}, Content)
+}, UIRefs.Content)
+styleScrollBar(SettingsView)
+create("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder }, SettingsView)
+padding(SettingsView, 4, 12, 4, 12)
 
-local RuntimeDiagnostics = {
-    ThemeSwitchCount = 0,
-    LastThemeSwitch = "Initial theme: " .. ThemeEngine.CurrentThemeName,
-    LastThemeColorUpdates = 0,
-    LastError = "None",
-    LastLog = "UI boot sequence started",
-    ThemeDebugLabel = nil,
-    ThemeTransitionOverlay = nil,
-    ThemeTransitionToken = 0,
-    ActiveThemeTween = nil,
-    ActiveThemeConnection = nil,
-    ActiveThemeProgress = nil,
-}
-ThemeEngine.RuntimeDiagnostics = RuntimeDiagnostics
-
-local ThemeDebug = { History = {}, LastMisses = {}, TotalUpdates = 0, TotalMisses = 0 }
-ThemeEngine.ThemeDebug = ThemeDebug
-_G.ThemeDebug = ThemeDebug
-
-local function pathOf(obj)
-    local parts = { obj.ClassName, obj.Name }
-    local cur = obj
-    while cur and cur.Parent and cur.Parent ~= playerGui do
-        cur = cur.Parent
-        table.insert(parts, 1, cur.Name)
-    end
-    return table.concat(parts, " > ")
+local function makeSection(title, order)
+    local section = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 6,
+    }, SettingsView)
+    create("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }, section)
+    create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1, Text = title:upper(),
+        TextColor3 = Theme.QuietText, Font = Theme.FontBold, TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 1, ZIndex = 7,
+    }, section)
+    return section
 end
-ThemeEngine.pathOf = pathOf
 
-local function debugTrace(level, message)
-    local line = ("[Dr4gonik Hub][%s] %s"):format(tostring(level), tostring(message))
-    RuntimeDiagnostics.LastLog = line
-    if level == "ERROR" or level == "WARN" then
-        warn(line)
-        if level == "ERROR" then RuntimeDiagnostics.LastError = tostring(message) end
+-- Appearance
+local AppearanceSection = makeSection("Appearance", 1)
+local themeSelectWrapper = create("Frame", { Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, AppearanceSection)
+
+local ThemeDropdownBtn = create("TextButton", {
+    Name = "ThemeDropdownBtn", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, Text = "  " .. themeDisplayNames[ThemeEngine.CurrentThemeName],
+    TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, ZIndex = 8,
+}, themeSelectWrapper)
+corner(ThemeDropdownBtn, 10)
+padding(ThemeDropdownBtn, 12, 36, 0, 0)
+stroke(ThemeDropdownBtn, Theme.Border, 1, 0.4)
+local ThemeChevron = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 56, 0.5, 0),
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, ThemeEngine.DropdownChevronOffset, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
+    Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
+}, ThemeDropdownBtn)
+corner(ThemeChevron, 8)
+
+local ThemeDropdownBackdrop = create("TextButton", {
+    Name = "ThemeDropdownBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+    Text = "", AutoButtonColor = false, Visible = false, ZIndex = 90,
+}, MainFrame)
+}, UIRefs.MainFrame)
+
+local ThemeDropdownMenu = create("Frame", {
+    Name = "ThemeDropdownMenu", Size = UDim2.fromOffset(200, 0), BackgroundColor3 = Theme.PanelRaised,
+    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 100,
+}, MainFrame)
+}, UIRefs.MainFrame)
+corner(ThemeDropdownMenu, 10)
+stroke(ThemeDropdownMenu, Theme.Border, 1, 0.05)
+create("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, ThemeDropdownMenu)
+padding(ThemeDropdownMenu, 6, 6, 6, 6)
+
+local function updateThemeMenuButtons()
+    for _, btn in pairs(ThemeDropdownMenu:GetChildren()) do
+        if btn:IsA("TextButton") then
+            local tName = btn:GetAttribute("ThemeName")
+            if tName then
+                btn.TextColor3 = tName == ThemeEngine.CurrentThemeName and Theme.Accent or Theme.PrimaryText
+                btn.Font = tName == ThemeEngine.CurrentThemeName and Theme.FontBold or Theme.Font
+            end
+        end
+    end
+end
+
+for i, name in ipairs(themeOrder) do
+    local opt = create("TextButton", {
+        Name = "Theme_" .. name, Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = Theme.Hover,
+        BackgroundTransparency = 1, BorderSizePixel = 0, Text = "  " .. themeDisplayNames[name],
+        TextColor3 = name == ThemeEngine.CurrentThemeName and Theme.Accent or Theme.PrimaryText,
+        Font = name == ThemeEngine.CurrentThemeName and Theme.FontBold or Theme.Font, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, LayoutOrder = i, ZIndex = 101,
+    }, ThemeDropdownMenu)
+    opt:SetAttribute("ThemeName", name)
+    corner(opt, 7)
+    padding(opt, 10, 8, 0, 0)
+    bindSoftButton(opt, { BackgroundTransparency = 0.1 }, 1.01)
+    opt.MouseButton1Click:Connect(function()
+        setTheme(name)
+        ThemeDropdownBtn.Text = "  " .. themeDisplayNames[name]
+        updateThemeMenuButtons()
+        if closeThemeDropdown then closeThemeDropdown(true) end
+    end)
+end
+
+local menuOpen = false
+closeThemeDropdown = function(animate)
+    if not menuOpen and not ThemeDropdownMenu.Visible then return end
+    menuOpen = false
+    if animate then
+        tween(ThemeChevron, { Rotation = 0 }, 0.14, Enum.EasingStyle.Quint)
     else
-        print(line)
+        ThemeChevron.Rotation = 0
     end
-end
-ThemeEngine.debugTrace = debugTrace
-
-local Theme = {}
-for k, v in pairs(Themes[ThemeEngine.CurrentThemeName]) do Theme[k] = v end
-Theme.Font = Enum.Font.GothamMedium
-Theme.FontBold = Enum.Font.GothamBold
-Theme.FontCode = Enum.Font.Code
-ThemeEngine.Theme = Theme
-
--- Apply a preset without animation, persistence, or diagnostics. Used during boot
--- while loadSettings runs before the GUI exists.
-function ThemeEngine.applyThemePreset(name)
-    local preset = Themes[name]
-    if not preset then return false end
-    for key, value in pairs(preset) do
-        Theme[key] = value
-    end
-    ThemeEngine.CurrentThemeName = name
-    RuntimeDiagnostics.LastThemeSwitch = "Initial theme: " .. name
-    return true
-end
-
---============================================================
---// BASE HELPERS
---============================================================
-local themeKeyForColor
-local ThemeRoleRegistry = setmetatable({}, { __mode = "k" })
-local ThemeColorProperties = {
-    BackgroundColor3 = true, TextColor3 = true, ImageColor3 = true, Color = true,
-    PlaceholderColor3 = true, ScrollBarImageColor3 = true, BorderColor3 = true,
-    TextStrokeColor3 = true,
-}
-
-local function create(className, props, parent)
-    local inst = Instance.new(className)
-    for k, v in pairs(props or {}) do
-        local ok, err = pcall(function() inst[k] = v end)
-        if not ok then
-            debugTrace("WARN", ("Could not set %s.%s: %s"):format(className, tostring(k), tostring(err)))
+    ThemeDropdownBackdrop.Visible = false
+    if animate and ThemeDropdownMenu.Visible then
+        local closing = tween(ThemeDropdownMenu, {
+            Size = UDim2.new(0, ThemeDropdownMenu.AbsoluteSize.X, 0, 0),
+            BackgroundTransparency = 1,
+        }, 0.14, Enum.EasingStyle.Quint)
+        if closing then
+            closing.Completed:Connect(function(state)
+                if state == Enum.PlaybackState.Completed and not menuOpen then ThemeDropdownMenu.Visible = false end
+            end)
+        else
+            ThemeDropdownMenu.Visible = false
         end
+    else
+        ThemeDropdownMenu.Visible = false
+        ThemeDropdownMenu.BackgroundTransparency = 1
     end
-    local roles = {}
-    for propName in pairs(ThemeColorProperties) do
-        local ok, value = pcall(function() return inst[propName] end)
-        if ok and typeof(value) == "Color3" and themeKeyForColor then
-            local role = themeKeyForColor(value, propName, Theme)
-            if role then roles[propName] = role end
-        end
-    end
-    if next(roles) then ThemeRoleRegistry[inst] = roles end
-    if parent then inst.Parent = parent end
-    return inst
 end
 
-local function tween(instance, goals, duration, style, direction)
-    if not instance or not instance.Parent then return end
-    local info = TweenInfo.new(duration or 0.18, style or Enum.EasingStyle.Quint, direction or Enum.EasingDirection.Out)
-    local anim = TweenService:Create(instance, info, goals)
-    anim:Play()
-    return anim
+local function openThemeDropdown()
+    if closeProviderDropdown then closeProviderDropdown(false) end
+    menuOpen = true
+    tween(ThemeChevron, { Rotation = 180 }, 0.2, Enum.EasingStyle.Quint)
+    local absPos = ThemeDropdownBtn.AbsolutePosition
+    local absSize = ThemeDropdownBtn.AbsoluteSize
+    local mainAbsPos = MainFrame.AbsolutePosition
+    local mainAbsPos = UIRefs.MainFrame.AbsolutePosition
+    ThemeDropdownMenu.Position = UDim2.fromOffset(absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 4)
+    ThemeDropdownMenu.Size = UDim2.fromOffset(absSize.X, 0)
+    ThemeDropdownMenu.BackgroundTransparency = 1
+    ThemeDropdownMenu.Visible = true
+    ThemeDropdownBackdrop.Visible = true
+    updateThemeMenuButtons()
+    tween(ThemeDropdownMenu, {
+        Size = UDim2.fromOffset(absSize.X, #themeOrder * 34 + 12), BackgroundTransparency = 0,
+    }, 0.2, Enum.EasingStyle.Quint)
 end
 
-local function corner(parent, radius) return create("UICorner", { CornerRadius = UDim.new(0, radius) }, parent) end
-local function stroke(parent, color, thickness, transparency)
-    return create("UIStroke", { Color = color or Theme.Border, Thickness = thickness or 1,
-        Transparency = transparency or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, parent)
-end
-local function padding(parent, l, r, t, b)
-    return create("UIPadding", { PaddingLeft = UDim.new(0, l or 0), PaddingRight = UDim.new(0, r or 0),
-        PaddingTop = UDim.new(0, t or 0), PaddingBottom = UDim.new(0, b or 0) }, parent)
-end
-local function viewportSize()
-    local cam = workspace.CurrentCamera
-    return cam and cam.ViewportSize or Vector2.new(1280, 720)
-end
+ThemeDropdownBtn.MouseButton1Click:Connect(function()
+    if menuOpen then closeThemeDropdown(true) else openThemeDropdown() end
+end)
+ThemeDropdownBackdrop.MouseButton1Click:Connect(function()
+    closeThemeDropdown(true)
+end)
+SettingsView:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+    if menuOpen then closeThemeDropdown(true) end
+end)
 
-ThemeEngine.create = create
-ThemeEngine.tween = tween
-ThemeEngine.corner = corner
-ThemeEngine.stroke = stroke
-ThemeEngine.padding = padding
-ThemeEngine.viewportSize = viewportSize
+SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not SettingsView.Visible and closeProviderDropdown then closeProviderDropdown(false) end
+    if not SettingsView.Visible and menuOpen then closeThemeDropdown(false) end
+end)
 
--- Minimalist custom Hub mark: a geometric diamond crossed by a clean slash.
--- Native Roblox UI shapes keep it sharp at small sizes and avoid external assets.
-Theme.createHubGlyph = function(parent, size, zIndex, color, centered)
-    local glyphColor = color or Theme.Accent
-    local host = create("Frame", {
-        Name = "Dr4gonikGlyph", AnchorPoint = centered and Vector2.new(0.5, 0.5) or Vector2.new(0, 0),
-        Position = centered and UDim2.fromScale(0.5, 0.5) or UDim2.new(0, 0, 0, 0),
-        Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1,
-        BorderSizePixel = 0, ZIndex = zIndex,
-    }, parent)
+-- AI Provider
+local ProviderSection = makeSection("AI Provider", 2)
+local providerRow = create("Frame", { Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, ProviderSection)
+local ModelInput, EndpointInput
+local providerList = { "DeepSeek", "Gemini", "Groq", "OpenRouter", "Token Harbor", "OpenAI", "Custom" }
+local ProviderDropdownButton = create("TextButton", {
+    Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, Text = "", AutoButtonColor = false, ZIndex = 8,
+}, providerRow)
+corner(ProviderDropdownButton, 11)
+stroke(ProviderDropdownButton, Theme.Border, 1, 0.28)
+bindSoftButton(ProviderDropdownButton, { BackgroundColor3 = Theme.PanelRaised }, 1.008)
 
-    local diamondSize = math.max(7, size * 0.5)
-    local diamond = create("Frame", {
-        Name = "GlyphDiamond", AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(diamondSize, diamondSize),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Rotation = 45, ZIndex = zIndex + 1,
-    }, host)
-    corner(diamond, math.max(1, math.floor(size * 0.09)))
-    stroke(diamond, glyphColor, math.max(1, size * 0.075), 0)
+local ProviderIcon = create("Frame", {
+    Position = UDim2.new(0, 11, 0.5, -17), Size = UDim2.fromOffset(34, 34),
+    BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 9,
+}, ProviderDropdownButton)
+corner(ProviderIcon, 10)
+create("TextLabel", {
+    Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "AI",
+    TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 11, ZIndex = 10,
+}, ProviderIcon)
 
-    local slash = create("Frame", {
-        Name = "GlyphSlash", AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(size * 0.62, math.max(1.5, size * 0.08)),
-        BackgroundColor3 = glyphColor, BorderSizePixel = 0, Rotation = -45, ZIndex = zIndex + 2,
-    }, host)
-    corner(slash, 1)
-    return host
-end
-ThemeEngine.createHubGlyph = Theme.createHubGlyph
+create("TextLabel", {
+    Position = UDim2.new(0, 55, 0, 10), Size = UDim2.new(1, -105, 0, 13),
+    BackgroundTransparency = 1, Text = "AI PROVIDER", TextColor3 = Theme.QuietText,
+    Font = Theme.FontBold, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9,
+}, ProviderDropdownButton)
+local SelectedProviderLabel = create("TextLabel", {
+    Position = UDim2.new(0, 55, 0, 25), Size = UDim2.new(1, -105, 0, 20),
+    BackgroundTransparency = 1, Text = AI.Provider, TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
+    TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
+}, ProviderDropdownButton)
+local ProviderChevron = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
+    Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Theme.SegmentedBg,
+    Text = "▼", TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9, ZIndex = 9,
+}, ProviderDropdownButton)
+corner(ProviderChevron, 8)
 
-local function bindSoftButton(button, hoverProps, hoverScale)
-    hoverScale = hoverScale or 1.035
-    local scale = create("UIScale", { Scale = 1 }, button)
-    local resting, hoveringProps = {}, {}
-    for propName in pairs(hoverProps or {}) do
-        local current = button[propName]
-        local themeKey = themeKeyForColor(current, propName, Theme)
-        resting[propName] = { value = current, themeKey = themeKey }
-        if themeKey then
-            if not ThemeRoleRegistry[button] then ThemeRoleRegistry[button] = {} end
-            ThemeRoleRegistry[button][propName] = themeKey
-        end
-        local hoverValue = hoverProps[propName]
-        hoveringProps[propName] = { value = hoverValue, themeKey = themeKeyForColor(hoverValue, propName, Theme) }
-    end
-    local function computeGoals(source)
-        local goals = {}
-        for propName, data in pairs(source) do
-            goals[propName] = (data.themeKey and Theme[data.themeKey]) or data.value
-        end
-        return goals
-    end
-    local hovering = false
-    button.MouseEnter:Connect(function()
-        hovering = true
-        tween(scale, { Scale = hoverScale }, 0.16, Enum.EasingStyle.Back)
-        tween(button, computeGoals(hoveringProps), 0.16)
-    end)
-    button.MouseLeave:Connect(function()
-        hovering = false
-        tween(scale, { Scale = 1 }, 0.16)
-        tween(button, computeGoals(resting), 0.16)
-    end)
-    button.MouseButton1Down:Connect(function() tween(scale, { Scale = 0.965 }, 0.07, Enum.EasingStyle.Quad) end)
-    button.MouseButton1Up:Connect(function() tween(scale, { Scale = hovering and hoverScale or 1 }, 0.13, Enum.EasingStyle.Back) end)
-    return scale
-end
-ThemeEngine.bindSoftButton = bindSoftButton
+ProviderDropdownMenu = create("ScrollingFrame", {
+    Name = "ProviderDropdownMenu", Size = UDim2.new(1, 0, 0, 0),
+    BackgroundColor3 = Theme.PanelRaised, BackgroundTransparency = 1,
+    BorderSizePixel = 0, ClipsDescendants = true, Visible = false,
+    ScrollingDirection = Enum.ScrollingDirection.Y, AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarThickness = 4,
+    LayoutOrder = 3, ZIndex = 8,
+}, ProviderSection)
+corner(ProviderDropdownMenu, 12)
+stroke(ProviderDropdownMenu, Theme.Border, 1, 0.18)
+padding(ProviderDropdownMenu, 7, 7, 7, 7)
+styleScrollBar(ProviderDropdownMenu)
+create("UIListLayout", {
+    Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+}, ProviderDropdownMenu)
 
-local function styleScrollBar(scroller)
-    scroller.ScrollBarThickness = 4
-    scroller.ScrollBarImageColor3 = Theme.Border
-    scroller.ScrollBarImageTransparency = 0.52
-    scroller.MouseEnter:Connect(function() tween(scroller, { ScrollBarImageTransparency = 0.12 }, 0.18) end)
-    scroller.MouseLeave:Connect(function() tween(scroller, { ScrollBarImageTransparency = 0.52 }, 0.18) end)
-end
-ThemeEngine.styleScrollBar = styleScrollBar
-
-
---============================================================
---// THEME RESOLUTION
---============================================================
-local THEME_KEY_PRIORITY = {
-    BackgroundColor3 = { "Background", "Sidebar", "Panel", "PanelRaised", "Hover", "Selected", "Accent", "AccentHover", "AccentSoft", "RightBg", "SegmentedBg", "Danger", "White" },
-    TextColor3 = { "PrimaryText", "MutedText", "QuietText", "Accent", "AccentHover", "Danger", "White" },
-    ImageColor3 = { "MutedText", "PrimaryText", "QuietText", "Accent", "AccentHover", "White", "Danger" },
-    PlaceholderColor3 = { "QuietText", "MutedText", "PrimaryText" },
-    ScrollBarImageColor3 = { "Border", "MutedText", "QuietText" },
-    BorderColor3 = { "Border", "Accent", "Danger" },
-    TextStrokeColor3 = { "Border", "Accent", "Danger", "PrimaryText", "White" },
-    Color = { "Accent", "AccentHover", "Border", "Danger", "MutedText", "QuietText", "PrimaryText", "White" },
-}
-
-themeKeyForColor = function(c, propName, sourceTheme)
-    if typeof(c) ~= "Color3" then return nil end
-    sourceTheme = sourceTheme or Theme
-    local priority = THEME_KEY_PRIORITY[propName]
-    if priority then
-        for _, key in ipairs(priority) do
-            if sourceTheme[key] == c then return key end
-        end
-    end
-    local keys = {}
-    for key in pairs(sourceTheme) do keys[#keys + 1] = key end
-    table.sort(keys)
-    for _, key in ipairs(keys) do
-        if typeof(sourceTheme[key]) == "Color3" and sourceTheme[key] == c then return key end
-    end
-    return nil
-end
-
-local function collectThemeChanges(root, oldTheme, newTheme)
-    local changes, misses = {}, {}
-    if not root then return changes, misses end
-    -- Some controls update their colors after construction, so the creation-time
-    -- role registry alone is incomplete. Scan once when switching themes and infer
-    -- roles from the colors actually on screen; the large-change path below avoids
-    -- repeating this work during every animation frame.
-    local objects = { root }
-    for _, obj in ipairs(root:GetDescendants()) do objects[#objects + 1] = obj end
-
-    for _, obj in ipairs(objects) do
-        local roles = ThemeRoleRegistry[obj]
-        for propName in pairs(ThemeColorProperties) do
-            local readOk, current = pcall(function() return obj[propName] end)
-            if readOk and typeof(current) == "Color3" then
-                local role = roles and roles[propName]
-                -- If the property was changed to a different palette color after
-                -- creation, prefer its current exact role. Keep the saved role when
-                -- the current value is an in-between transition color.
-                if role and oldTheme[role] ~= current then
-                    local redetected = themeKeyForColor(current, propName, oldTheme)
-                    if redetected then role = redetected end
+local providerOptions = {}
+closeProviderDropdown = function(animate)
+    ProviderChevron.Text = "▼"
+    if animate and ProviderDropdownMenu.Visible then
+        local closing = tween(ProviderDropdownMenu, {
+            Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1,
+        }, 0.14, Enum.EasingStyle.Quint)
+        if closing then
+            closing.Completed:Connect(function(state)
+                if state == Enum.PlaybackState.Completed and ProviderDropdownMenu.Size.Y.Offset == 0 then
+                    ProviderDropdownMenu.Visible = false
                 end
-                if role and not newTheme[role] then role = nil end
-                if not role then role = themeKeyForColor(current, propName, oldTheme) end
-
-                if role and newTheme[role] then
-                    if not roles then
-                        roles = {}
-                        ThemeRoleRegistry[obj] = roles
-                    end
-                    roles[propName] = role
-                    local target = newTheme[role]
-                    if target ~= current then
-                        changes[#changes + 1] = {
-                            object = obj,
-                            property = propName,
-                            from = current,
-                            to = target,
-                            role = role,
-                        }
-                    end
-                elseif #misses < 60 then
-                    misses[#misses + 1] = {
-                        path = pathOf(obj), prop = propName, color = current,
-                        reason = "no theme role match",
-                    }
-                end
-            end
+            end)
+        else
+            ProviderDropdownMenu.Visible = false
         end
+    else
+        ProviderDropdownMenu.Visible = false
+        ProviderDropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+        ProviderDropdownMenu.BackgroundTransparency = 1
     end
-    return changes, misses
 end
 
-
-local function setTheme(name)
-    if not Themes[name] then
-        debugTrace("WARN", "Unknown theme: " .. tostring(name))
-        return false
+local function chooseProvider(prov)
+    AI.Provider = prov
+    if prov ~= "Custom" then
+        AI.Endpoint = ProviderPresets[prov].endpoint
+        AI.Model = ProviderPresets[prov].models[1]
+        AI.Endpoint = UIRefs.ProviderPresets[prov].endpoint
+        AI.Model = UIRefs.ProviderPresets[prov].models[1]
+    else
+        AI.Endpoint = AI.CustomEndpoint
     end
-    if name == ThemeEngine.CurrentThemeName then
-        debugTrace("INFO", "Theme already active: " .. name)
-        return true
+    SelectedProviderLabel.Text = prov
+    for name, option in pairs(providerOptions) do
+        local active = name == prov
+        option.BackgroundColor3 = active and Theme.Selected or Theme.PanelRaised
+        option.TextColor3 = active and Theme.PrimaryText or Theme.MutedText
+        local check = option:FindFirstChild("SelectedCheck")
+        if check then check.Visible = active end
     end
-
-    local oldName = ThemeEngine.CurrentThemeName
-    local oldTheme = {}
-    for k, v in pairs(Theme) do oldTheme[k] = v end
-
-    local newThemeSnapshot = {}
-    for k, v in pairs(Theme) do newThemeSnapshot[k] = v end
-    for k, v in pairs(Themes[name]) do newThemeSnapshot[k] = v end
-    -- Theme includes font entries as well as colors. Keep the active theme table's
-    -- extra fields (fonts) and only replace the theme values from the selected preset.
-    for k, v in pairs(Themes[name]) do Theme[k] = v end
-    ThemeEngine.CurrentThemeName = name
     saveSettings()
-
-    local root = playerGui:FindFirstChild("DeepSeekUI")
-    if not root then
-        debugTrace("ERROR", "Theme root DeepSeekUI not found")
-        return false
+    if ModelInput then ModelInput.Text = AI.Model end
+    if EndpointInput then
+        EndpointInput.Text = (AI.Provider == "Custom") and AI.CustomEndpoint or AI.Endpoint
+        EndpointInput.TextEditable = AI.Provider == "Custom"
     end
-
-    RuntimeDiagnostics.ThemeTransitionToken += 1
-    local generation = RuntimeDiagnostics.ThemeTransitionToken
-
-    -- Cancel the previous animation cleanly. An interrupted transition starts from
-    -- the actual on-screen colors, not from a stale theme snapshot.
-    if RuntimeDiagnostics.ActiveThemeTween then
-        pcall(function() RuntimeDiagnostics.ActiveThemeTween:Cancel() end)
-        RuntimeDiagnostics.ActiveThemeTween = nil
-    end
-    if RuntimeDiagnostics.ActiveThemeConnection then
-        pcall(function() RuntimeDiagnostics.ActiveThemeConnection:Disconnect() end)
-        RuntimeDiagnostics.ActiveThemeConnection = nil
-    end
-    if RuntimeDiagnostics.ActiveThemeProgress then
-        pcall(function() RuntimeDiagnostics.ActiveThemeProgress:Destroy() end)
-        RuntimeDiagnostics.ActiveThemeProgress = nil
-    end
-
-    local changes, misses = collectThemeChanges(root, oldTheme, newThemeSnapshot)
-    local overlay = RuntimeDiagnostics.ThemeTransitionOverlay
-    local overlayStartBg = overlay and overlay.BackgroundColor3 or oldTheme.Background
-    local overlayGoalBg = newThemeSnapshot.Background or Theme.Background
-    local overlayGradient = overlay and overlay:FindFirstChildOfClass("UIGradient")
-    local oldAccent = oldTheme.Accent or Theme.Accent
-    local oldAccentHover = oldTheme.AccentHover or oldAccent
-    local newAccent = newThemeSnapshot.Accent or Theme.Accent
-    local newAccentHover = newThemeSnapshot.AccentHover or newAccent
-
-    local function finishThemeTransition(colorsAlreadyApplied)
-        if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-        if not colorsAlreadyApplied then
-            for _, change in ipairs(changes) do
-                if change.object and change.object.Parent then
-                    pcall(function() change.object[change.property] = change.to end)
-                end
-            end
-        end
-        if overlay and overlay.Parent then
-            overlay.BackgroundTransparency = 1
-            overlay.BackgroundColor3 = overlayGoalBg
-            -- Hide the transition surface explicitly. UIGradient transparency can
-            -- still render independently of the frame's BackgroundTransparency.
-            overlay.Visible = false
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, newAccent),
-                ColorSequenceKeypoint.new(0.5, newAccentHover),
-                ColorSequenceKeypoint.new(1, newAccent),
-            })
-        end
-
-        ThemeDebug.TotalUpdates += #changes
-        ThemeDebug.TotalMisses += #misses
-        ThemeDebug.LastMisses = misses
-        ThemeDebug.History[#ThemeDebug.History + 1] = {
-            from = oldName, to = name, updates = #changes, misses = #misses,
-            timestamp = os.clock(), detail = misses,
-        }
-        if #ThemeDebug.History > 30 then table.remove(ThemeDebug.History, 1) end
-
-        RuntimeDiagnostics.ThemeSwitchCount += 1
-        RuntimeDiagnostics.LastThemeColorUpdates = #changes
-        RuntimeDiagnostics.LastThemeSwitch = ("%s → %s · %d animated · %d missed"):format(oldName, name, #changes, #misses)
-        debugTrace(#misses > 0 and "WARN" or "INFO", "Theme switch: " .. RuntimeDiagnostics.LastThemeSwitch)
-        if RuntimeDiagnostics.ThemeDebugLabel and RuntimeDiagnostics.ThemeDebugLabel.Parent then
-            RuntimeDiagnostics.ThemeDebugLabel.Text = "Theme engine: " .. RuntimeDiagnostics.LastThemeSwitch
-            RuntimeDiagnostics.ThemeDebugLabel.TextColor3 = #misses > 0 and Theme.Danger or Theme.MutedText
-        end
-        if RuntimeDiagnostics.ActiveThemeConnection then
-            RuntimeDiagnostics.ActiveThemeConnection:Disconnect()
-            RuntimeDiagnostics.ActiveThemeConnection = nil
-        end
-        if RuntimeDiagnostics.ActiveThemeProgress then
-            RuntimeDiagnostics.ActiveThemeProgress:Destroy()
-            RuntimeDiagnostics.ActiveThemeProgress = nil
-        end
-        RuntimeDiagnostics.ActiveThemeTween = nil
-    end
-
-    if #changes == 0 then
-        finishThemeTransition()
-        return #misses == 0
-    end
-
-    if overlay and overlay.Parent then overlay.Visible = true end
-
-    -- Large interfaces can have hundreds of registered color properties. Updating
-    -- every property on every animation frame stalls the render thread. Apply those
-    -- colors once, then animate the lightweight full-window wash for a smooth
-    -- transition. Small changes retain the precise per-property interpolation.
-    local useOverlayOnly = #changes > 120
-    if useOverlayOnly then
-        for _, change in ipairs(changes) do
-            if change.object and change.object.Parent then
-                pcall(function() change.object[change.property] = change.to end)
-            end
-        end
-        if overlay and overlay.Parent then
-            overlay.BackgroundColor3 = overlayStartBg
-            overlay.BackgroundTransparency = 0.62
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, oldAccent),
-                ColorSequenceKeypoint.new(0.5, oldAccentHover),
-                ColorSequenceKeypoint.new(1, oldAccent),
-            })
-        end
-    end
-
-    -- One shared progress tween drives every affected color. This avoids creating
-    -- hundreds of individual property tweens and ensures the entire UI transitions
-    -- together instead of changing control-by-control.
-    local progress = Instance.new("NumberValue")
-    progress.Name = "ThemeTransitionProgress"
-    progress.Value = 0
-    RuntimeDiagnostics.ActiveThemeProgress = progress
-
-    local function applyProgress(alpha)
-        if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-        if not useOverlayOnly then
-            for _, change in ipairs(changes) do
-                local obj = change.object
-                if obj and obj.Parent then
-                    pcall(function()
-                        obj[change.property] = change.from:Lerp(change.to, alpha)
-                    end)
-                end
-            end
-        end
-        if overlay and overlay.Parent then
-            overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
-            -- A subtle wash gives the transition a cohesive gradient feel without
-            -- hiding the UI or blocking input.
-            overlay.BackgroundTransparency = (useOverlayOnly and 0.62 or 0.965) + ((useOverlayOnly and 0.38 or 0.035) * alpha)
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, oldAccent:Lerp(newAccent, alpha)),
-                ColorSequenceKeypoint.new(0.5, oldAccentHover:Lerp(newAccentHover, alpha)),
-                ColorSequenceKeypoint.new(1, oldAccent:Lerp(newAccent, alpha)),
-            })
-        end
-    end
-
-    RuntimeDiagnostics.ActiveThemeConnection = progress:GetPropertyChangedSignal("Value"):Connect(function()
-        applyProgress(progress.Value)
-    end)
-    RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
-        progress,
-        TweenInfo.new(0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut),
-        { Value = 1 }
-    )
-    RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed then
-            finishThemeTransition(useOverlayOnly)
-        end
-    end)
-    RuntimeDiagnostics.ActiveThemeTween:Play()
-    return true
+    closeProviderDropdown(true)
 end
 
-ThemeEngine.setTheme = setTheme
+for i, prov in ipairs(providerList) do
+    local option = create("TextButton", {
+        Name = "ProviderOption_" .. prov:gsub("%s", ""),
+        Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.PanelRaised,
+        BorderSizePixel = 0, Text = prov, TextColor3 = Theme.MutedText,
+        Font = Theme.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+        AutoButtonColor = false, LayoutOrder = i, ZIndex = 9,
+    }, ProviderDropdownMenu)
+    corner(option, 8)
+    padding(option, 11, 34, 0, 0)
+    local check = create("TextLabel", {
+        Name = "SelectedCheck", AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(18, 18),
+        BackgroundTransparency = 1, Text = "✓", TextColor3 = Theme.Accent,
+        Font = Theme.FontBold, TextSize = 13, Visible = prov == AI.Provider, ZIndex = 10,
+    }, option)
+    option.BackgroundColor3 = prov == AI.Provider and Theme.Selected or Theme.PanelRaised
+    option.TextColor3 = prov == AI.Provider and Theme.PrimaryText or Theme.MutedText
+    providerOptions[prov] = option
+    option.MouseEnter:Connect(function()
+        if prov ~= AI.Provider then tween(option, { BackgroundColor3 = Theme.Hover }, 0.1) end
+    end)
+    option.MouseLeave:Connect(function()
+        if prov ~= AI.Provider then tween(option, { BackgroundColor3 = Theme.PanelRaised }, 0.1) end
+    end)
+    option.MouseButton1Click:Connect(function() chooseProvider(prov) end)
+end
+
+ProviderDropdownButton.MouseButton1Click:Connect(function()
+    local open = not ProviderDropdownMenu.Visible
+    if open then
+        if closeThemeDropdown then closeThemeDropdown(false) end
+        ProviderDropdownMenu.CanvasPosition = Vector2.new(0, 0)
+        ProviderDropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+        ProviderDropdownMenu.BackgroundTransparency = 1
+        ProviderDropdownMenu.Visible = true
+        ProviderChevron.Text = "▲"
+        tween(ProviderDropdownMenu, {
+            Size = UDim2.new(1, 0, 0, 164), BackgroundTransparency = 0,
+        }, 0.2, Enum.EasingStyle.Quint)
+    else
+        closeProviderDropdown(true)
+    end
+end)
+
+-- Model
+local ModelSection = makeSection("Model", 3)
+ModelInput = create("TextBox", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = AI.Model,
+    TextColor3 = Theme.PrimaryText, Font = Theme.FontCode, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
+    ClearTextOnFocus = false, LayoutOrder = 2, ZIndex = 7,
+}, ModelSection)
+corner(ModelInput, 10)
+padding(ModelInput, 12, 12, 0, 0)
+local modelStroke = stroke(ModelInput, Theme.Border, 1, 0.4)
+ModelInput.Focused:Connect(function() tween(modelStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
+ModelInput.FocusLost:Connect(function()
+    tween(modelStroke, { Color = Theme.Border, Transparency = 0.4 }, 0.16)
+    AI.Model = ModelInput.Text
+    saveSettings()
+end)
+
+-- API Key
+local ApiSection = makeSection("API Key", 4)
+local ApiInput = create("TextBox", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = AI.ApiKey,
+    PlaceholderText = "sk-...", PlaceholderColor3 = Theme.QuietText, TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontCode, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left,
+    ClearTextOnFocus = false, LayoutOrder = 2, ZIndex = 7,
+}, ApiSection)
+corner(ApiInput, 10)
+padding(ApiInput, 12, 12, 0, 0)
+local apiStroke = stroke(ApiInput, Theme.Border, 1, 0.4)
+ApiInput.Focused:Connect(function() tween(apiStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
+ApiInput.FocusLost:Connect(function()
+    tween(apiStroke, { Color = Theme.Border, Transparency = 0.4 }, 0.16)
+    AI.ApiKey = ApiInput.Text
+    saveSettings()
+end)
+
+-- Endpoint
+local EndpointSection = makeSection("Endpoint", 5)
+EndpointInput = create("TextBox", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
+    Text = (AI.Provider == "Custom") and AI.CustomEndpoint or AI.Endpoint,
+    TextEditable = AI.Provider == "Custom", TextColor3 = Theme.PrimaryText, Font = Theme.FontCode,
+    TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, LayoutOrder = 2, ZIndex = 7,
+}, EndpointSection)
+corner(EndpointInput, 10)
+padding(EndpointInput, 12, 12, 0, 0)
+stroke(EndpointInput, Theme.Border, 1, 0.4)
+EndpointInput.FocusLost:Connect(function()
+    if AI.Provider == "Custom" then
+        AI.CustomEndpoint = EndpointInput.Text
+        AI.Endpoint = AI.CustomEndpoint
+        saveSettings()
+    end
+end)
+
+-- Generation
+local GenerationSection = makeSection("Generation", 6)
+local function makeFieldRow(section, titleText, initialText, placeholder, order, height)
+    local row = create("Frame", {
+        Size = UDim2.new(1, 0, 0, height or 60),
+        BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7,
+    }, section)
+    create("TextLabel", {
+        Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1,
+        Text = titleText, TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+    }, row)
+    local box = create("TextBox", {
+        Position = UDim2.new(0, 0, 0, 22), Size = UDim2.new(1, 0, 0, (height or 60) - 22),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = initialText or "",
+        PlaceholderText = placeholder or "", PlaceholderColor3 = Theme.QuietText,
+        TextColor3 = Theme.PrimaryText, Font = Theme.FontCode, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false, MultiLine = false, ZIndex = 8,
+    }, row)
+    corner(box, 9)
+    padding(box, 11, 11, 0, 0)
+    stroke(box, Theme.Border, 1, 0.4)
+    return box
+end
+
+local TemperatureInput = makeFieldRow(GenerationSection, "Temperature (0–2)", tostring(AI.Temperature), "0.7", 2)
+TemperatureInput.FocusLost:Connect(function()
+    local v = tonumber(TemperatureInput.Text) or 0.7
+    AI.Temperature = math.clamp(v, 0, 2)
+    TemperatureInput.Text = tostring(AI.Temperature)
+    saveSettings()
+end)
+
+local MaxTokensInput = makeFieldRow(GenerationSection, "Maximum output tokens (128–16384)", tostring(AI.MaxTokens), "1024", 3)
+MaxTokensInput.FocusLost:Connect(function()
+    local v = tonumber(MaxTokensInput.Text) or 1024
+    AI.MaxTokens = math.clamp(math.floor(v), 128, 16384)
+    MaxTokensInput.Text = tostring(AI.MaxTokens)
+    saveSettings()
+end)
+
+local ContextInput = makeFieldRow(GenerationSection, "Recent messages as context (2–100)", tostring(AI.ContextMessages), "30", 4)
+ContextInput.FocusLost:Connect(function()
+    local v = tonumber(ContextInput.Text) or 30
+    AI.ContextMessages = math.clamp(math.floor(v), 2, 100)
+    ContextInput.Text = tostring(AI.ContextMessages)
+    saveSettings()
+end)
+
+local TimeoutInput = makeFieldRow(GenerationSection, "Request timeout seconds (5–120)", tostring(AI.RequestTimeout), "45", 5)
+TimeoutInput.FocusLost:Connect(function()
+    local v = tonumber(TimeoutInput.Text) or 45
+    AI.RequestTimeout = math.clamp(math.floor(v), 5, 120)
+    TimeoutInput.Text = tostring(AI.RequestTimeout)
+    saveSettings()
+end)
+
+local MaxIterInput = makeFieldRow(GenerationSection, "Max tool-loop iterations (1–10)", tostring(AI.MaxToolIterations), "4", 6)
+MaxIterInput.FocusLost:Connect(function()
+    local v = tonumber(MaxIterInput.Text) or 4
+    AI.MaxToolIterations = math.clamp(math.floor(v), 1, 10)
+    MaxIterInput.Text = tostring(AI.MaxToolIterations)
+    saveSettings()
+end)
+
+-- System prompt
+local PromptSection = makeSection("System instructions", 7)
+local PromptRow = create("Frame", { Size = UDim2.new(1, 0, 0, 112), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 7 }, PromptSection)
+local SystemPromptInput = create("TextBox", {
+    Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
+    Text = AI.SystemPrompt or "", PlaceholderText = "Optional instructions applied to each request...",
+    PlaceholderColor3 = Theme.QuietText, TextColor3 = Theme.PrimaryText, Font = Theme.Font,
+    TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top, ClearTextOnFocus = false, MultiLine = true, ZIndex = 8,
+}, PromptRow)
+corner(SystemPromptInput, 10)
+padding(SystemPromptInput, 11, 11, 9, 9)
+stroke(SystemPromptInput, Theme.Border, 1, 0.4)
+SystemPromptInput.FocusLost:Connect(function()
+    AI.SystemPrompt = SystemPromptInput.Text
+    saveSettings()
+end)
+
+-- Behavior
+local BehaviorSection = makeSection("Chat behavior", 8)
+local toggleButtons = {}
+local function addToggleRow(section, titleText, detailText, key, order)
+    local row = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 54), BackgroundColor3 = Theme.Panel,
+        BorderSizePixel = 0, LayoutOrder = order, ZIndex = 7,
+    }, section)
+    corner(row, 10)
+    stroke(row, Theme.Border, 1, 0.55)
+    create("TextLabel", {
+        Position = UDim2.new(0, 12, 0, 7), Size = UDim2.new(1, -98, 0, 18), BackgroundTransparency = 1,
+        Text = titleText, TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 8,
+    }, row)
+    create("TextLabel", {
+        Position = UDim2.new(0, 12, 0, 27), Size = UDim2.new(1, -98, 0, 17), BackgroundTransparency = 1,
+        Text = detailText, TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 8,
+    }, row)
+    local btn = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(64, 28), BackgroundColor3 = AI[key] and Theme.Accent or Theme.SegmentedBg,
+        BorderSizePixel = 0, Text = AI[key] and "ON" or "OFF",
+        TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 10,
+        AutoButtonColor = false, ZIndex = 9,
+    }, row)
+    corner(btn, 8)
+    toggleButtons[key] = btn
+    btn.MouseButton1Click:Connect(function()
+        AI[key] = not AI[key]
+        btn.Text = AI[key] and "ON" or "OFF"
+        tween(btn, { BackgroundColor3 = AI[key] and Theme.Accent or Theme.SegmentedBg }, 0.15)
+        saveSettings()
+    end)
+    return btn
+end
+
+addToggleRow(BehaviorSection, "Send on Enter", "Press Enter to send a message.", "EnterToSend", 2)
+addToggleRow(BehaviorSection, "Auto-scroll chat", "Keep the newest message in view.", "AutoScroll", 3)
+addToggleRow(BehaviorSection, "Save conversation history", "Uses local file storage when supported.", "SaveHistory", 4)
+addToggleRow(BehaviorSection, "Disable conversation summarization",
+    "Never send automatic requests to summarize older chat context.", "DisableSummarization", 5)
+addToggleRow(BehaviorSection, "Auto-execute AI [EXECUTE] blocks",
+    "Only tagged code runs. Untagged blocks just display.", "AutoExecute", 6)
+addToggleRow(BehaviorSection, "Sandbox output capture",
+    "Capture print/warn inside [EXECUTE] blocks.", "CaptureOutput", 7)
+addToggleRow(BehaviorSection, "Include workspace snapshot",
+    "Inject workspace tree into every request.", "IncludeWorkspace", 8)
+
+-- Diagnostics
+local DiagnosticsSection = makeSection("Debug & diagnostics", 9)
+local ConnectionStatus = create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1,
+    Text = "Connection not tested.",
+    TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 11,
+    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Center, LayoutOrder = 2, ZIndex = 7,
+}, DiagnosticsSection)
+
+local ThemeDebugLabel = create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1,
+    Text = "Theme engine: " .. RuntimeDiagnostics.LastThemeSwitch,
+    TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 10,
+    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Center, LayoutOrder = 3, ZIndex = 7,
+}, DiagnosticsSection)
+RuntimeDiagnostics.ThemeDebugLabel = ThemeDebugLabel
+
+local RuntimeDebugLabel = create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 130), BackgroundTransparency = 1,
+    Text = "Diagnostics have not been refreshed.",
+    TextColor3 = Theme.QuietText, Font = Theme.FontCode, TextSize = 10,
+    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 4, ZIndex = 7,
+}, DiagnosticsSection)
+
+local RefreshDebugButton = create("TextButton", {
+    Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, Text = "Refresh diagnostics", TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 11, AutoButtonColor = false, LayoutOrder = 5, ZIndex = 7,
+}, DiagnosticsSection)
+corner(RefreshDebugButton, 9)
+stroke(RefreshDebugButton, Theme.Border, 1, 0.35)
+bindSoftButton(RefreshDebugButton, { BackgroundColor3 = Theme.Hover }, 1.02)
+
+local function refreshRuntimeDiagnostics()
+    local lines = {}
+    lines[#lines + 1] = "Context: " .. (RunService:IsClient() and "client LocalScript" or "server Script")
+    lines[#lines + 1] = "Context: " .. (UIRefs.RunService:IsClient() and "client LocalScript" or "server Script")
+    lines[#lines + 1] = "Theme: " .. ThemeEngine.CurrentThemeName ..
+        " · switches: " .. tostring(RuntimeDiagnostics.ThemeSwitchCount) ..
+        " · misses: " .. tostring(ThemeDebug.TotalMisses)
+    local transport = (type(request) == "function") or (type(http_request) == "function") or
+                      (type(syn) == "table" and type(syn.request) == "function") or
+                      (type(http) == "table" and type(http.request) == "function")
+    lines[#lines + 1] = "HTTP: " .. (transport and "available" or "MISSING")
+    lines[#lines + 1] = "loadstring: " .. (type(loadstring) == "function" and "available" or "MISSING")
+    lines[#lines + 1] = "file IO: " .. ((type(readfile) == "function" and type(writefile) == "function") and "available" or "MISSING")
+    lines[#lines + 1] = "Sandbox runs: " .. tostring(#Sandbox.History) ..
+        " · last ok: " .. tostring(Sandbox.History[#Sandbox.History] and Sandbox.History[#Sandbox.History].ok)
+    lines[#lines + 1] = "Last log: " .. tostring(RuntimeDiagnostics.LastLog)
+    lines[#lines + 1] = "Last error: " .. tostring(RuntimeDiagnostics.LastError)
+    if #ThemeDebug.LastMisses > 0 then
+        lines[#lines + 1] = "Theme misses:"
+        for i, m in ipairs(ThemeDebug.LastMisses) do
+            if i > 5 then break end
+            lines[#lines + 1] = "  · " .. m.path .. "." .. m.prop
+        end
+    end
+    RuntimeDebugLabel.Text = table.concat(lines, "\n")
+    RuntimeDebugLabel.TextColor3 = RuntimeDiagnostics.LastError ~= "None" and Theme.Danger or Theme.QuietText
+    print("[Dr4gonik Hub][DIAGNOSTICS]\n" .. RuntimeDebugLabel.Text)
+end
+RefreshDebugButton.MouseButton1Click:Connect(refreshRuntimeDiagnostics)
+
+local TestConnectionButton = create("TextButton", {
+    Size = UDim2.new(1, 0, 0, 38), BackgroundColor3 = Theme.Accent,
+    BorderSizePixel = 0, Text = "Test API connection", TextColor3 = Theme.White,
+    Font = Theme.FontBold, TextSize = 12, AutoButtonColor = false, LayoutOrder = 6, ZIndex = 7,
+}, DiagnosticsSection)
+corner(TestConnectionButton, 9)
+bindSoftButton(TestConnectionButton, { BackgroundColor3 = Theme.AccentHover }, 1.02)
+TestConnectionButton.MouseButton1Click:Connect(function()
+    if not AI.ApiKey or AI.ApiKey == "" then
+        ConnectionStatus.Text = "Missing API key."
+        ConnectionStatus.TextColor3 = Theme.Danger
+        return
+    end
+    ConnectionStatus.Text = "Testing " .. AI.Provider .. " · " .. AI.Model .. "…"
+    ConnectionStatus.TextColor3 = Theme.MutedText
+    TestConnectionButton.Active = false
+    task.spawn(function()
+        local result, err = AI.CallAI({ { role = "user", content = "Reply with OK." } }, true)
+        TestConnectionButton.Active = true
+        if result then
+            ConnectionStatus.Text = "OK · " .. tostring(result.content):sub(1, 90)
+            ConnectionStatus.TextColor3 = Color3.fromRGB(88, 195, 135)
+        else
+            ConnectionStatus.Text = "Failed: " .. tostring(err):sub(1, 220)
+            ConnectionStatus.TextColor3 = Theme.Danger
+        end
+    end)
+end)
+
+local ResetButton = create("TextButton", {
+    Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.Panel,
+    BorderSizePixel = 0, Text = "Restore default chat settings", TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 12, AutoButtonColor = false, LayoutOrder = 7, ZIndex = 7,
+}, DiagnosticsSection)
+corner(ResetButton, 9)
+stroke(ResetButton, Theme.Border, 1, 0.4)
+bindSoftButton(ResetButton, { BackgroundColor3 = Theme.Hover }, 1.02)
+ResetButton.MouseButton1Click:Connect(function()
+    AI.Temperature = 0.7; AI.MaxTokens = 1024; AI.ContextMessages = 30; AI.RequestTimeout = 45
+    AI.SystemPrompt = ""; AI.SaveHistory = true; AI.DisableSummarization = false; AI.EnterToSend = true; AI.AutoScroll = true
+    AI.AutoExecute = true; AI.CaptureOutput = true; AI.IncludeWorkspace = false
+    AI.MaxToolIterations = 4; AI.Effort = "Medium"
+    TemperatureInput.Text = tostring(AI.Temperature)
+    MaxTokensInput.Text = tostring(AI.MaxTokens)
+    ContextInput.Text = tostring(AI.ContextMessages)
+    TimeoutInput.Text = tostring(AI.RequestTimeout)
+    MaxIterInput.Text = tostring(AI.MaxToolIterations)
+    SystemPromptInput.Text = AI.SystemPrompt
+    for key, btn in pairs(toggleButtons) do
+        btn.Text = AI[key] and "ON" or "OFF"
+        tween(btn, { BackgroundColor3 = AI[key] and Theme.Accent or Theme.SegmentedBg }, 0.15)
+    end
+    setEffortIndex(3)
+    ConnectionStatus.Text = "Defaults restored."
+    saveSettings()
+end)
+
+create("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 54), BackgroundTransparency = 1,
+    Text = "Security: file-enabled runtimes may store your API key in plain text. Keep credentials on a trusted server/backend for published experiences.",
+    TextColor3 = Theme.QuietText, Font = Theme.Font, TextSize = 10,
+    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 10, ZIndex = 7,
+}, SettingsView)
+
+end -- settings scope
