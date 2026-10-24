@@ -3,7 +3,7 @@
 --============================================================
 local SettingsView
 local setEffortIndex
-local ProviderDropdownMenu, ProviderDropdownBackdrop
+local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
 do
 SettingsView = create("ScrollingFrame", {
     Name = "SettingsView", Position = UDim2.new(0, 0, 0, CHAT_TOP),
@@ -53,8 +53,8 @@ local ThemeDropdownBackdrop = create("TextButton", {
 }, MainFrame)
 
 local ThemeDropdownMenu = create("Frame", {
-    Name = "ThemeDropdownMenu", Size = UDim2.fromOffset(200, 160), BackgroundColor3 = Theme.PanelRaised,
-    BorderSizePixel = 0, Visible = false, ZIndex = 100,
+    Name = "ThemeDropdownMenu", Size = UDim2.fromOffset(200, 0), BackgroundColor3 = Theme.PanelRaised,
+    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 100,
 }, MainFrame)
 corner(ThemeDropdownMenu, 10)
 stroke(ThemeDropdownMenu, Theme.Border, 1, 0.05)
@@ -88,49 +88,64 @@ for i, name in ipairs(themeOrder) do
     opt.MouseButton1Click:Connect(function()
         setTheme(name)
         ThemeDropdownBtn.Text = "  " .. themeDisplayNames[name]
-        ThemeDropdownMenu.Visible = false
-        ThemeDropdownBackdrop.Visible = false
         updateThemeMenuButtons()
+        if closeThemeDropdown then closeThemeDropdown(true) end
     end)
 end
 
 local menuOpen = false
-ThemeDropdownBtn.MouseButton1Click:Connect(function()
-    menuOpen = not menuOpen
-    ThemeDropdownMenu.Visible = menuOpen
-    ThemeDropdownBackdrop.Visible = menuOpen
-    if menuOpen then
-        local absPos = ThemeDropdownBtn.AbsolutePosition
-        local absSize = ThemeDropdownBtn.AbsoluteSize
-        local mainAbsPos = MainFrame.AbsolutePosition
-        ThemeDropdownMenu.Position = UDim2.fromOffset(absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 4)
-        ThemeDropdownMenu.Size = UDim2.fromOffset(absSize.X, #themeOrder * 34 + 12)
-        updateThemeMenuButtons()
+closeThemeDropdown = function(animate)
+    if not menuOpen and not ThemeDropdownMenu.Visible then return end
+    menuOpen = false
+    ThemeDropdownBackdrop.Visible = false
+    if animate and ThemeDropdownMenu.Visible then
+        local closing = tween(ThemeDropdownMenu, {
+            Size = UDim2.new(0, ThemeDropdownMenu.AbsoluteSize.X, 0, 0),
+            BackgroundTransparency = 1,
+        }, 0.14, Enum.EasingStyle.Quint)
+        if closing then
+            closing.Completed:Connect(function(state)
+                if state == Enum.PlaybackState.Completed and not menuOpen then ThemeDropdownMenu.Visible = false end
+            end)
+        else
+            ThemeDropdownMenu.Visible = false
+        end
+    else
+        ThemeDropdownMenu.Visible = false
+        ThemeDropdownMenu.BackgroundTransparency = 1
     end
+end
+
+local function openThemeDropdown()
+    if closeProviderDropdown then closeProviderDropdown(false) end
+    menuOpen = true
+    local absPos = ThemeDropdownBtn.AbsolutePosition
+    local absSize = ThemeDropdownBtn.AbsoluteSize
+    local mainAbsPos = MainFrame.AbsolutePosition
+    ThemeDropdownMenu.Position = UDim2.fromOffset(absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 4)
+    ThemeDropdownMenu.Size = UDim2.fromOffset(absSize.X, 0)
+    ThemeDropdownMenu.BackgroundTransparency = 1
+    ThemeDropdownMenu.Visible = true
+    ThemeDropdownBackdrop.Visible = true
+    updateThemeMenuButtons()
+    tween(ThemeDropdownMenu, {
+        Size = UDim2.fromOffset(absSize.X, #themeOrder * 34 + 12), BackgroundTransparency = 0,
+    }, 0.2, Enum.EasingStyle.Quint)
+end
+
+ThemeDropdownBtn.MouseButton1Click:Connect(function()
+    if menuOpen then closeThemeDropdown(true) else openThemeDropdown() end
 end)
 ThemeDropdownBackdrop.MouseButton1Click:Connect(function()
-    menuOpen = false
-    ThemeDropdownMenu.Visible = false
-    ThemeDropdownBackdrop.Visible = false
+    closeThemeDropdown(true)
 end)
 SettingsView:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-    if menuOpen then
-        menuOpen = false
-        ThemeDropdownMenu.Visible = false
-        ThemeDropdownBackdrop.Visible = false
-    end
+    if menuOpen then closeThemeDropdown(true) end
 end)
 
 SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
-    if not SettingsView.Visible and ProviderDropdownMenu then
-        ProviderDropdownMenu.Visible = false
-        ProviderDropdownBackdrop.Visible = false
-    end
-    if not SettingsView.Visible and menuOpen then
-        menuOpen = false
-        ThemeDropdownMenu.Visible = false
-        ThemeDropdownBackdrop.Visible = false
-    end
+    if not SettingsView.Visible and closeProviderDropdown then closeProviderDropdown(false) end
+    if not SettingsView.Visible and menuOpen then closeThemeDropdown(false) end
 end)
 
 -- AI Provider
@@ -158,7 +173,7 @@ create("TextLabel", {
 
 create("TextLabel", {
     Position = UDim2.new(0, 55, 0, 10), Size = UDim2.new(1, -105, 0, 13),
-    BackgroundTransparency = 1, Text = "API PROVIDER", TextColor3 = Theme.QuietText,
+    BackgroundTransparency = 1, Text = "AI PROVIDER", TextColor3 = Theme.QuietText,
     Font = Theme.FontBold, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 9,
 }, ProviderDropdownButton)
 local SelectedProviderLabel = create("TextLabel", {
@@ -174,28 +189,43 @@ local ProviderChevron = create("TextLabel", {
 }, ProviderDropdownButton)
 corner(ProviderChevron, 8)
 
-ProviderDropdownBackdrop = create("TextButton", {
-    Name = "ProviderDropdownBackdrop", Size = UDim2.fromScale(1, 1),
-    BackgroundTransparency = 1, Text = "", AutoButtonColor = false,
-    Visible = false, ZIndex = 99,
-}, MainFrame)
-ProviderDropdownMenu = create("Frame", {
-    Name = "ProviderDropdownMenu", Size = UDim2.fromOffset(240, 0),
-    AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Theme.PanelRaised,
-    BorderSizePixel = 0, Visible = false, ZIndex = 100,
-}, MainFrame)
+ProviderDropdownMenu = create("ScrollingFrame", {
+    Name = "ProviderDropdownMenu", Size = UDim2.new(1, 0, 0, 0),
+    BackgroundColor3 = Theme.PanelRaised, BackgroundTransparency = 1,
+    BorderSizePixel = 0, ClipsDescendants = true, Visible = false,
+    ScrollingDirection = Enum.ScrollingDirection.Y, AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarThickness = 4,
+    LayoutOrder = 3, ZIndex = 8,
+}, ProviderSection)
 corner(ProviderDropdownMenu, 12)
 stroke(ProviderDropdownMenu, Theme.Border, 1, 0.18)
 padding(ProviderDropdownMenu, 7, 7, 7, 7)
+styleScrollBar(ProviderDropdownMenu)
 create("UIListLayout", {
     Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
 }, ProviderDropdownMenu)
 
 local providerOptions = {}
-local function closeProviderDropdown()
-    ProviderDropdownMenu.Visible = false
-    ProviderDropdownBackdrop.Visible = false
+closeProviderDropdown = function(animate)
     ProviderChevron.Text = "▼"
+    if animate and ProviderDropdownMenu.Visible then
+        local closing = tween(ProviderDropdownMenu, {
+            Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1,
+        }, 0.14, Enum.EasingStyle.Quint)
+        if closing then
+            closing.Completed:Connect(function(state)
+                if state == Enum.PlaybackState.Completed and ProviderDropdownMenu.Size.Y.Offset == 0 then
+                    ProviderDropdownMenu.Visible = false
+                end
+            end)
+        else
+            ProviderDropdownMenu.Visible = false
+        end
+    else
+        ProviderDropdownMenu.Visible = false
+        ProviderDropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+        ProviderDropdownMenu.BackgroundTransparency = 1
+    end
 end
 
 local function chooseProvider(prov)
@@ -220,7 +250,7 @@ local function chooseProvider(prov)
         EndpointInput.Text = (AI.Provider == "Custom") and AI.CustomEndpoint or AI.Endpoint
         EndpointInput.TextEditable = AI.Provider == "Custom"
     end
-    closeProviderDropdown()
+    closeProviderDropdown(true)
 end
 
 for i, prov in ipairs(providerList) do
@@ -229,7 +259,7 @@ for i, prov in ipairs(providerList) do
         Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.PanelRaised,
         BorderSizePixel = 0, Text = prov, TextColor3 = Theme.MutedText,
         Font = Theme.Font, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
-        AutoButtonColor = false, LayoutOrder = i, ZIndex = 101,
+        AutoButtonColor = false, LayoutOrder = i, ZIndex = 9,
     }, ProviderDropdownMenu)
     corner(option, 8)
     padding(option, 11, 34, 0, 0)
@@ -237,7 +267,7 @@ for i, prov in ipairs(providerList) do
         Name = "SelectedCheck", AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(18, 18),
         BackgroundTransparency = 1, Text = "✓", TextColor3 = Theme.Accent,
-        Font = Theme.FontBold, TextSize = 13, Visible = prov == AI.Provider, ZIndex = 102,
+        Font = Theme.FontBold, TextSize = 13, Visible = prov == AI.Provider, ZIndex = 10,
     }, option)
     option.BackgroundColor3 = prov == AI.Provider and Theme.Selected or Theme.PanelRaised
     option.TextColor3 = prov == AI.Provider and Theme.PrimaryText or Theme.MutedText
@@ -254,24 +284,19 @@ end
 ProviderDropdownButton.MouseButton1Click:Connect(function()
     local open = not ProviderDropdownMenu.Visible
     if open then
-        menuOpen = false
-        ThemeDropdownMenu.Visible = false
-        ThemeDropdownBackdrop.Visible = false
-        local absPos = ProviderDropdownButton.AbsolutePosition
-        local absSize = ProviderDropdownButton.AbsoluteSize
-        local mainAbsPos = MainFrame.AbsolutePosition
-        ProviderDropdownMenu.Position = UDim2.fromOffset(
-            absPos.X - mainAbsPos.X, absPos.Y - mainAbsPos.Y + absSize.Y + 6
-        )
-        ProviderDropdownMenu.Size = UDim2.fromOffset(absSize.X, #providerList * 40 + 10)
+        if closeThemeDropdown then closeThemeDropdown(false) end
+        ProviderDropdownMenu.CanvasPosition = Vector2.new(0, 0)
+        ProviderDropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+        ProviderDropdownMenu.BackgroundTransparency = 1
         ProviderDropdownMenu.Visible = true
-        ProviderDropdownBackdrop.Visible = true
         ProviderChevron.Text = "▲"
+        tween(ProviderDropdownMenu, {
+            Size = UDim2.new(1, 0, 0, 164), BackgroundTransparency = 0,
+        }, 0.2, Enum.EasingStyle.Quint)
     else
-        closeProviderDropdown()
+        closeProviderDropdown(true)
     end
 end)
-ProviderDropdownBackdrop.MouseButton1Click:Connect(closeProviderDropdown)
 
 -- Model
 local ModelSection = makeSection("Model", 3)
