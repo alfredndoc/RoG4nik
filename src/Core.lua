@@ -497,17 +497,48 @@ local CodeHeaderTitle = create("TextLabel", {
 }, CodeHeader)
 
 -- Manual fixed positioning for Toolbar items to prevent any overlap on small screens
-local CodeToolbar = create("Frame", { Position = UDim2.new(0, 0, 0, 38), Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ZIndex = 5 }, CodePanel)
+local CodeToolbar = create("Frame", { Position = UDim2.new(0, 0, 0, 38), Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 5 }, CodePanel)
 corner(CodeToolbar, 13)
 local CodeToolbarDivider = create("Frame", { Position = UDim2.new(0, 0, 1, -1), Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = Theme.Border, BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 5 }, CodeToolbar)
 padding(CodeToolbar, 12, 12, 0, 0)
 
 -- Added TextTruncate & ClipsDescendants to stop text overflowing
-ScriptUI.NameBox = create("TextBox", {Position=UDim2.new(0,0,0,7), Size=UDim2.new(0.32,-6,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Script name", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, ClearTextOnFocus=false, TextTruncate=Enum.TextTruncate.AtEnd, ClipsDescendants=true, ZIndex=6}, CodeToolbar)
-corner(ScriptUI.NameBox,8); stroke(ScriptUI.NameBox,Theme.Border,1,0.15); padding(ScriptUI.NameBox,10,8,0,0)
+-- Put each TextBox inside a matching clipping viewport. Roblox TextBoxes can
+-- horizontally scroll while focused; the independent parent clip prevents long
+-- descriptions from painting over adjacent toolbar buttons or fields.
+ScriptUI.NameBoxClip = create("Frame", {
+    Name = "ScriptNameClip", Position = UDim2.new(0, 0, 0, 7),
+    Size = UDim2.new(0.32, -6, 0, 32), BackgroundTransparency = 1,
+    BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 6,
+}, CodeToolbar)
+ScriptUI.NameBox = create("TextBox", {
+    Name = "NameBox", Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = "",
+    PlaceholderText = "Script name", TextColor3 = Theme.PrimaryText,
+    PlaceholderColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
+    TextWrapped = false, ClearTextOnFocus = false, ClipsDescendants = true, ZIndex = 6,
+}, ScriptUI.NameBoxClip)
+corner(ScriptUI.NameBox, 8)
+stroke(ScriptUI.NameBox, Theme.Border, 1, 0.15)
+padding(ScriptUI.NameBox, 10, 8, 0, 0)
 
-ScriptUI.DescriptionBox = create("TextBox", {Position=UDim2.new(0.32,2,0,7), Size=UDim2.new(0.32,-8,0,32), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="", PlaceholderText="Description", TextColor3=Theme.PrimaryText, PlaceholderColor3=Theme.MutedText, Font=Theme.Font, TextSize=12, ClearTextOnFocus=false, TextTruncate=Enum.TextTruncate.AtEnd, ClipsDescendants=true, ZIndex=6}, CodeToolbar)
-corner(ScriptUI.DescriptionBox,8); stroke(ScriptUI.DescriptionBox,Theme.Border,1,0.15); padding(ScriptUI.DescriptionBox,10,8,0,0)
+ScriptUI.DescriptionBoxClip = create("Frame", {
+    Name = "DescriptionBoxClip", Position = UDim2.new(0.32, 2, 0, 7),
+    Size = UDim2.new(0.32, -8, 0, 32), BackgroundTransparency = 1,
+    BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 6,
+}, CodeToolbar)
+ScriptUI.DescriptionBox = create("TextBox", {
+    Name = "DescriptionBox", Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = "",
+    PlaceholderText = "Description", TextColor3 = Theme.PrimaryText,
+    PlaceholderColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
+    TextWrapped = false, ClearTextOnFocus = false, ClipsDescendants = true, ZIndex = 6,
+}, ScriptUI.DescriptionBoxClip)
+corner(ScriptUI.DescriptionBox, 8)
+stroke(ScriptUI.DescriptionBox, Theme.Border, 1, 0.15)
+padding(ScriptUI.DescriptionBox, 10, 8, 0, 0)
 
 -- Save As (Blue)
 local SaveAsBtn = create("TextButton", {Position=UDim2.new(0.64,2,0,7), Size=UDim2.new(0.16,-8,0,32), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Save As", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=12, ZIndex=6}, CodeToolbar)
@@ -1106,10 +1137,8 @@ local function performMenuAction(index)
     elseif mode == "profile" then
         if index == 1 and createNewConversation then createNewConversation()
         elseif index == 2 then
-            activeView = "settings"
-            AI.UpdateUIForTab(activeTab) -- Fixed: unified view toggling
-            if ChatTitle then ChatTitle.Text = "Settings" end
-            if ChatSub then ChatSub.Text = "Customize your workspace" end
+            -- Share the same exclusive-navigation path as the sidebar button.
+            if AI.OpenSettingsView then AI.OpenSettingsView() end
         elseif index == 3 then ScreenGui.Enabled = false end
     elseif mode == "plus" then
         if index == 1 then
@@ -1163,10 +1192,15 @@ createNewConversation = function()
         if AI.SaveHistory and writefile then writefile(CONVOS_FILE, HttpService:JSONEncode(conversations)) end
     end)
     if activeView == "settings" then
-        activeView = "chat"
-        if SettingsView then SettingsView.Visible = false end
-        if ChatDisplay then ChatDisplay.Visible = true end
-        if InputBar then InputBar.Visible = true end
+        -- A new conversation should switch through the same tab state machine,
+        -- rather than showing Chat while leaving another workspace tab visible.
+        if setActiveTab then
+            setActiveTab("Chat")
+        else
+            activeView = "chat"
+            activeTab = "Chat"
+            if AI.UpdateUIForTab then AI.UpdateUIForTab("Chat") end
+        end
     end
 end
 
@@ -1225,20 +1259,40 @@ NewConvoBtn.MouseButton1Click:Connect(createNewConversation)
 --// TABS
 --============================================================
 AI.UpdateUIForTab = function(tab)
-    local isSettings = activeView == "settings"
-    local isCode = (not isSettings) and tab == "Code"
-    local isScripts = (not isSettings) and tab == "Scripts"
-    local isChat = (not isSettings) and tab == "Chat"
+    -- Hide every sibling content root first. This prevents stale tab surfaces
+    -- from remaining visible underneath Settings regardless of which button or
+    -- menu action opened it.
+    if SettingsView then SettingsView.Visible = false end
+    if ScriptUI and ScriptUI.View then ScriptUI.View.Visible = false end
+    if CodeEditorFrame then CodeEditorFrame.Visible = false end
+    if ChatDisplay then ChatDisplay.Visible = false end
+    if EmptyChatLabel then EmptyChatLabel.Visible = false end
+    if InputBar then InputBar.Visible = false end
 
-    -- Every navigation change sets every content surface explicitly. This prevents
-    -- hidden views from surviving underneath Settings or another workspace tab.
-    if SettingsView then SettingsView.Visible = isSettings end
-    if ScriptUI and ScriptUI.View then ScriptUI.View.Visible = isScripts end
-    if CodeEditorFrame then CodeEditorFrame.Visible = isCode end
-    if ChatDisplay then ChatDisplay.Visible = isChat end
-    if EmptyChatLabel then EmptyChatLabel.Visible = isChat and not chatHasContent end
-    if InputBar then InputBar.Visible = isChat end
-    if isScripts and ScriptUI and ScriptUI.refreshCards then ScriptUI.refreshCards() end
+    if activeView == "settings" then
+        if SettingsView then SettingsView.Visible = true end
+        return
+    end
+
+    if tab == "Scripts" then
+        if ScriptUI and ScriptUI.View then ScriptUI.View.Visible = true end
+        if ScriptUI and ScriptUI.refreshCards then ScriptUI.refreshCards() end
+    elseif tab == "Code" then
+        if CodeEditorFrame then CodeEditorFrame.Visible = true end
+    elseif tab == "Chat" then
+        if ChatDisplay then ChatDisplay.Visible = true end
+        if EmptyChatLabel then EmptyChatLabel.Visible = not chatHasContent end
+        if InputBar then InputBar.Visible = true end
+    end
+end
+
+AI.OpenSettingsView = function()
+    activeView = "settings"
+    if setMenuOpen then setMenuOpen(nil) end
+    if toggleEffortPopup then toggleEffortPopup(false) end
+    if AI.UpdateUIForTab then AI.UpdateUIForTab(activeTab) end
+    if ChatTitle then ChatTitle.Text = "Settings" end
+    if ChatSub then ChatSub.Text = "Customize your workspace" end
 end
 
 setActiveTab = function(name)
@@ -1302,10 +1356,7 @@ ForwardButton.MouseButton1Click:Connect(function()
     if prev then showConversation(prev.id) end
 end)
 SettingsButton.MouseButton1Click:Connect(function()
-    activeView = "settings"
-    AI.UpdateUIForTab(activeTab)
-    if ChatTitle then ChatTitle.Text = "Settings" end
-    if ChatSub then ChatSub.Text = "Customize your workspace" end
+    AI.OpenSettingsView()
 end)
 FoldersButton.MouseButton1Click:Connect(function()
     if EmptyChatLabel then
