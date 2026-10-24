@@ -170,12 +170,21 @@ AI.CallAI = function(messages, isTest, indicator, options)
     local numericStatus = tonumber(status)
     if numericStatus == 400 and streaming then
         local lowerBody = string.lower(tostring(responseBody or ""))
-        local mentionsStream = lowerBody:find("stream", 1, true) ~= nil
-        local likelyUnsupported = lowerBody:find("unsupported", 1, true) ~= nil
-            or lowerBody:find("not support", 1, true) ~= nil
-            or lowerBody:find("invalid parameter", 1, true) ~= nil
-            or lowerBody:find("unknown field", 1, true) ~= nil
-            or lowerBody:find("extra_forbidden", 1, true) ~= nil
+        -- Use string.find directly instead of string-method syntax. This is more
+        -- portable in executor environments where string metatable methods may
+        -- be altered or unavailable.
+        local function containsLiteral(haystack, needle)
+            local findFn = type(string) == "table" and string.find or nil
+            if type(findFn) ~= "function" then return false end
+            local ok, position = pcall(findFn, tostring(haystack or ""), needle, 1, true)
+            return ok and position ~= nil
+        end
+        local mentionsStream = containsLiteral(lowerBody, "stream")
+        local likelyUnsupported = containsLiteral(lowerBody, "unsupported")
+            or containsLiteral(lowerBody, "not support")
+            or containsLiteral(lowerBody, "invalid parameter")
+            or containsLiteral(lowerBody, "unknown field")
+            or containsLiteral(lowerBody, "extra_forbidden")
         if mentionsStream and likelyUnsupported then
             debugTrace("WARN", "Provider rejected streaming; retrying once with buffered JSON mode.")
             body.stream = false
@@ -362,7 +371,10 @@ AI.ParseToolBlocks = function(text)
     local tools = {}
     if type(text) ~= "string" then return tools end
     for header, body in text:gmatch("```lua%s*%[([^%]]+)%]([^`]*)```") do
-        local normalized = RichFormatter and RichFormatter.trim(header) or header:gsub("^%s+", ""):gsub("%s+$", "")
+        local trimHeader = RichFormatter and RichFormatter.trim
+        local normalized = type(trimHeader) == "function"
+            and trimHeader(header)
+            or tostring(header):gsub("^%s+", ""):gsub("%s+$", "")
         if normalized == "EXECUTE" then
             tools[#tools + 1] = { kind = "execute", code = body }
         elseif normalized:match("^INSPECT") then
@@ -373,13 +385,51 @@ AI.ParseToolBlocks = function(text)
     return tools
 end
 
+-- Resolve the sandbox runner defensively. In the assembled one-chunk build the
+-- local function is visible; in runtimes that load AIRequest.lua separately, use
+-- the explicit _G export made by Sandbox.lua instead of calling nil.
+local function runToolCode(code)
+    if type(code) ~= "string" then
+        return { ok = false, error = "Tool code must be a string.", output = "" }
+    end
+
+    local runner = runInSandbox
+    if type(runner) ~= "function" and type(_G) == "table" then
+        runner = _G.runInSandbox
+    end
+    if type(runner) ~= "function" then
+        return {
+            ok = false,
+            error = "Sandbox runner is unavailable. Load Sandbox.lua before AIRequest.lua, or run the GitHub loader to assemble all modules.",
+            output = "",
+        }
+    end
+
+    local ok, result = pcall(runner, code)
+    if not ok then
+        return { ok = false, error = "Sandbox runner threw: " .. tostring(result), output = "" }
+    end
+    if type(result) ~= "table" then
+        return { ok = false, error = "Sandbox runner returned an invalid result.", output = "" }
+    end
+    return result
+end
+
 AI.RunTool = function(tool)
+    if type(tool) ~= "table" then
+        return { ok = false, error = "Tool descriptor must be a table.", output = "" }
+    end
+
     if tool.kind == "execute" then
-        return runInSandbox(tool.code)
+        return runToolCode(tool.code)
     elseif tool.kind == "inspect" then
-        local expr = tool.code:gsub("^%s+", ""):gsub("%s+$", "")
-        local wrapped = ("local __t = (%s)\nprint(inspect(__t, %d))"):format(expr, tool.depth)
-        return runInSandbox(wrapped)
+        local expr = tostring(tool.code or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if expr == "" then
+            return { ok = false, error = "Inspect expression is empty.", output = "" }
+        end
+        local depth = math.clamp(tonumber(tool.depth) or 3, 1, 4)
+        local wrapped = ("local __t = (%s)\nprint(inspect(__t, %d))"):format(expr, depth)
+        return runToolCode(wrapped)
     end
     return { ok = false, error = "unknown tool kind", output = "" }
 end
