@@ -1383,6 +1383,7 @@ UIRefs.WindowState.setBodyVisible = function(visible)
         if UIRefs.ChatDisplay then UIRefs.ChatDisplay.Visible = false end
         if UIRefs.InputBar then UIRefs.InputBar.Visible = false end
         if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
+        if UIRefs.ScriptUI and UIRefs.ScriptUI.View then UIRefs.ScriptUI.View.Visible = false end
         if UIRefs.CodeEditorFrame then UIRefs.CodeEditorFrame.Visible = false end
         if SettingsView then SettingsView.Visible = false end
     end
