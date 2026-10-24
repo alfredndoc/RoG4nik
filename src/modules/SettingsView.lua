@@ -11,6 +11,7 @@ local themeSimpleButton, themeAdvancedButton, themeGlassButton, themeTransparenc
 local themeGradientButton, themeGradientRotationInput, themeGradientStrengthInput
 local themeGradientStartButton, themeGradientEndButton
 local GradientColorPicker, GradientColorPickerBackdrop
+local APPEARANCE_MODES_WIP = true
 local function refreshThemeControls() end
 do
 SettingsView = create("Frame", {
@@ -264,15 +265,23 @@ local function makeAppearanceModeRow(title, subtitle, order)
     return button
 end
 
-themeSimpleButton = makeAppearanceModeRow("Simple appearance", "Apply the glass look with one setting.", 3)
-themeAdvancedButton = makeAppearanceModeRow("Advanced appearance", "Customize glass, gloss, gradients, and colors.", 4)
+themeSimpleButton = makeAppearanceModeRow("Simple appearance", "Work in progress — temporarily unavailable.", 3)
+themeAdvancedButton = makeAppearanceModeRow("Advanced appearance", "Work in progress — temporarily unavailable.", 4)
+if APPEARANCE_MODES_WIP then
+    AI.ThemeSimple = false
+    AI.ThemeAdvanced = false
+    AI.ThemeGlass = false
+    AI.ThemeGradient = false
+end
 themeSimpleButton.MouseButton1Click:Connect(function()
+    if APPEARANCE_MODES_WIP then return end
     AI.ThemeSimple = not AI.ThemeSimple
     if AI.ThemeSimple then AI.ThemeAdvanced = false end
     refreshThemeControls()
     applySavedAppearance()
 end)
 themeAdvancedButton.MouseButton1Click:Connect(function()
+    if APPEARANCE_MODES_WIP then return end
     AI.ThemeAdvanced = not AI.ThemeAdvanced
     if AI.ThemeAdvanced then AI.ThemeSimple = false end
     refreshThemeControls()
@@ -552,10 +561,16 @@ end)
 refreshThemeControls = function()
     themeAdvancedControls.Visible = AI.ThemeAdvanced
     themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 320 or 0)
-    themeSimpleButton.Text = AI.ThemeSimple and "ON" or "OFF"
-    themeSimpleButton.BackgroundColor3 = AI.ThemeSimple and Theme.Accent or Theme.SegmentedBg
-    themeAdvancedButton.Text = AI.ThemeAdvanced and "ON" or "OFF"
-    themeAdvancedButton.BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg
+    themeSimpleButton.Text = APPEARANCE_MODES_WIP and "WIP" or (AI.ThemeSimple and "ON" or "OFF")
+    themeSimpleButton.Active = not APPEARANCE_MODES_WIP
+    themeSimpleButton.Selectable = not APPEARANCE_MODES_WIP
+    themeSimpleButton.TextColor3 = APPEARANCE_MODES_WIP and Theme.QuietText or Theme.PrimaryText
+    themeSimpleButton.BackgroundColor3 = APPEARANCE_MODES_WIP and Theme.Panel or (AI.ThemeSimple and Theme.Accent or Theme.SegmentedBg)
+    themeAdvancedButton.Text = APPEARANCE_MODES_WIP and "WIP" or (AI.ThemeAdvanced and "ON" or "OFF")
+    themeAdvancedButton.Active = not APPEARANCE_MODES_WIP
+    themeAdvancedButton.Selectable = not APPEARANCE_MODES_WIP
+    themeAdvancedButton.TextColor3 = APPEARANCE_MODES_WIP and Theme.QuietText or Theme.PrimaryText
+    themeAdvancedButton.BackgroundColor3 = APPEARANCE_MODES_WIP and Theme.Panel or (AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg)
     themeGlassButton.Text = AI.ThemeGlass and "ON" or "OFF"
     themeGlassButton.BackgroundColor3 = AI.ThemeGlass and Theme.Accent or Theme.SegmentedBg
     themeGradientButton.Text = AI.ThemeGradient and "ON" or "OFF"
