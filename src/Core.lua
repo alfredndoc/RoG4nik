@@ -61,6 +61,7 @@ local ProviderPresets = {
     Gemini = { endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", models = { "gemini-3.8-flash" }, summaryModel = "gemini-3.8-flash" },
     Groq = { endpoint = "https://api.groq.com/openai/v1/chat/completions", models = { "openai/gpt-oss-20b", "openai/gpt-oss-120b" }, summaryModel = "openai/gpt-oss-20b" },
     OpenRouter = { endpoint = "https://openrouter.ai/api/v1/chat/completions", models = { "openrouter/free" }, summaryModel = "openrouter/free" },
+    ["Token Harbor"] = { endpoint = "https://tokenharbor.ai/v1/chat/completions", models = { "deepseek-v4.1-flash:free" }, summaryModel = "deepseek-v4.1-flash:free" },
     OpenAI   = { endpoint = "https://api.openai.com/v1/chat/completions", models = { "gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra" } },
     Custom   = { endpoint = "", models = { "" } },
 }
