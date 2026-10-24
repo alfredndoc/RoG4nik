@@ -53,6 +53,10 @@ local AI = {
     MaxToolIterations = 4,
     IncludeWorkspace  = false,
     StreamingEnabled = true,
+    ThemeAdvanced = false,
+    ThemeTransparency = 0.14,
+    ThemeGloss = 0.25,
+    ThemeGradient = true,
     RequestActive = false,
     CancelRequest = false,
 }
@@ -95,6 +99,10 @@ local function loadSettings()
                 if type(d.CaptureOutput) == "boolean" then AI.CaptureOutput = d.CaptureOutput end
                 if type(d.MaxToolIterations) == "number" then AI.MaxToolIterations = math.clamp(math.floor(d.MaxToolIterations), 1, 10) end
                 if type(d.IncludeWorkspace) == "boolean" then AI.IncludeWorkspace = d.IncludeWorkspace end
+                if type(d.ThemeAdvanced) == "boolean" then AI.ThemeAdvanced = d.ThemeAdvanced end
+                if type(d.ThemeTransparency) == "number" then AI.ThemeTransparency = math.clamp(d.ThemeTransparency, 0, 1) end
+                if type(d.ThemeGloss) == "number" then AI.ThemeGloss = math.clamp(d.ThemeGloss, 0, 1) end
+                if type(d.ThemeGradient) == "boolean" then AI.ThemeGradient = d.ThemeGradient end
                 if d.Theme and Themes[d.Theme] then
                     ThemeEngine.CurrentThemeName = d.Theme
                     ThemeEngine.applyThemePreset(d.Theme)
@@ -120,6 +128,8 @@ saveSettings = function()
                 AutoExecute = AI.AutoExecute, SandboxMode = AI.SandboxMode,
                 CaptureOutput = AI.CaptureOutput, MaxToolIterations = AI.MaxToolIterations,
                 IncludeWorkspace = AI.IncludeWorkspace,
+                ThemeAdvanced = AI.ThemeAdvanced, ThemeTransparency = AI.ThemeTransparency,
+                ThemeGloss = AI.ThemeGloss, ThemeGradient = AI.ThemeGradient,
             }))
         end
     end)
