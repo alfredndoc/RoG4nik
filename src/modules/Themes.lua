@@ -46,7 +46,29 @@ local Themes = {
         White = Color3.new(1, 1, 1), RightBg = Color3.fromRGB(14, 20, 40),
         SegmentedBg = Color3.fromRGB(10, 14, 28),
     },
+    Red = {
+        Background = Color3.fromRGB(28, 18, 22), Sidebar = Color3.fromRGB(38, 22, 28),
+        Panel = Color3.fromRGB(49, 27, 34), PanelRaised = Color3.fromRGB(59, 31, 40),
+        Hover = Color3.fromRGB(74, 37, 47), Selected = Color3.fromRGB(88, 39, 50),
+        Accent = Color3.fromRGB(238, 75, 94), AccentHover = Color3.fromRGB(255, 101, 116),
+        AccentSoft = Color3.fromRGB(91, 38, 51), PrimaryText = Color3.fromRGB(250, 239, 241),
+        MutedText = Color3.fromRGB(190, 157, 164), QuietText = Color3.fromRGB(139, 108, 116),
+        Border = Color3.fromRGB(88, 49, 59), Danger = Color3.fromRGB(255, 90, 90),
+        White = Color3.new(1, 1, 1), RightBg = Color3.fromRGB(34, 20, 25),
+        SegmentedBg = Color3.fromRGB(25, 16, 20),
+    },
+    CursorBlack = {
+        Background = Color3.fromRGB(8, 9, 11), Sidebar = Color3.fromRGB(12, 13, 16),
+        Panel = Color3.fromRGB(19, 20, 24), PanelRaised = Color3.fromRGB(25, 26, 31),
+        Hover = Color3.fromRGB(34, 35, 41), Selected = Color3.fromRGB(39, 40, 47),
+        Accent = Color3.fromRGB(160, 145, 255), AccentHover = Color3.fromRGB(180, 168, 255),
+        AccentSoft = Color3.fromRGB(45, 40, 72), PrimaryText = Color3.fromRGB(245, 245, 248),
+        MutedText = Color3.fromRGB(165, 166, 174), QuietText = Color3.fromRGB(112, 114, 124),
+        Border = Color3.fromRGB(47, 48, 56), Danger = Color3.fromRGB(245, 86, 94),
+        White = Color3.new(1, 1, 1), RightBg = Color3.fromRGB(10, 11, 13),
+        SegmentedBg = Color3.fromRGB(15, 16, 19),
+    },
 }
 
-local themeOrder = { "Dark", "White", "Blue", "MidnightBlue" }
-local themeDisplayNames = { Dark = "Dark", White = "White", Blue = "Blue", MidnightBlue = "Midnight" }
+local themeOrder = { "Dark", "White", "Blue", "MidnightBlue", "Red", "CursorBlack" }
+local themeDisplayNames = { Dark = "Dark", White = "White", Blue = "Blue", MidnightBlue = "Midnight", Red = "Red", CursorBlack = "Cursor Black" }
