@@ -2,7 +2,7 @@
 -- Upload this file's matching src/ folder to the configured GitHub repository.
 -- Run this loader in the same supported Roblox executor/runtime as the original script.
 
-local RAW_BASE = "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY/main"
+local RAW_BASE = "https://raw.githubusercontent.com/alfredndoc/RoG4nik/main/src"
 local CORE_PATH = "src/Core.lua"
 local MODULE_DIRECTORY = "src/modules/"
 local MODULES = {
