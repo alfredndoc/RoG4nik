@@ -243,20 +243,6 @@ end
 local function collectThemeChanges(root, oldTheme, newTheme)
     local changes, misses = {}, {}
     if not root then return changes, misses end
-    -- create() and bindSoftButton() register theme-owned color properties as the
-    -- UI is built. Walk that small registry instead of every descendant and every
-    -- possible color property on each switch.
-    for obj, roles in pairs(ThemeRoleRegistry) do
-        if obj and obj.Parent and obj:IsDescendantOf(root) then
-            for propName, role in pairs(roles) do
-                local readOk, current = pcall(function() return obj[propName] end)
-                if readOk and typeof(current) == "Color3" then
-                    -- Hover and focus colors can differ from the registered resting
-                    -- role. Re-detect exact palette colors when possible; keep the
-                    -- registered role during an interrupted transition.
-                    if oldTheme[role] ~= current then
-                        local redetected = themeKeyForColor(current, propName, oldTheme)
-                        if redetected then role = redetected; roles[propName] = role end
     -- Some controls update their colors after construction, so the creation-time
     -- role registry alone is incomplete. Scan once when switching themes and infer
     -- roles from the colors actually on screen; the large-change path below avoids
@@ -287,7 +273,6 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                     end
                     roles[propName] = role
                     local target = newTheme[role]
-                    if target and target ~= current then
                     if target ~= current then
                         changes[#changes + 1] = {
                             object = obj,
@@ -296,8 +281,6 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                             to = target,
                             role = role,
                         }
-                    elseif not target and #misses < 60 then
-                        misses[#misses + 1] = { path = pathOf(obj), prop = propName, color = current, reason = "theme role missing" }
                     end
                 elseif #misses < 60 then
                     misses[#misses + 1] = {
