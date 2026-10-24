@@ -243,38 +243,23 @@ end
 local function collectThemeChanges(root, oldTheme, newTheme)
     local changes, misses = {}, {}
     if not root then return changes, misses end
-
-    local objects = { root }
-    for _, obj in ipairs(root:GetDescendants()) do
-        objects[#objects + 1] = obj
-    end
-
-    for _, obj in ipairs(objects) do
-        local roles = ThemeRoleRegistry[obj]
-        for propName in pairs(ThemeColorProperties) do
-            local readOk, current = pcall(function()
-                return obj[propName]
-            end)
-            if readOk and typeof(current) == "Color3" then
-                local role = roles and roles[propName]
-                -- If this control is currently hovered/pressed, its color may exactly
-                -- match a different role than its resting color. Detect that exact role;
-                -- if it is halfway through an interrupted transition, keep the registry.
-                if role and oldTheme[role] ~= current then
-                    local redetected = themeKeyForColor(current, propName, oldTheme)
-                    if redetected then role = redetected end
-                end
-                if role and not newTheme[role] then role = nil end
-                if not role then role = themeKeyForColor(current, propName, oldTheme) end
-
-                if role and newTheme[role] then
-                    if not roles then
-                        roles = {}
-                        ThemeRoleRegistry[obj] = roles
+    -- create() and bindSoftButton() register theme-owned color properties as the
+    -- UI is built. Walk that small registry instead of every descendant and every
+    -- possible color property on each switch.
+    for obj, roles in pairs(ThemeRoleRegistry) do
+        if obj and obj.Parent and obj:IsDescendantOf(root) then
+            for propName, role in pairs(roles) do
+                local readOk, current = pcall(function() return obj[propName] end)
+                if readOk and typeof(current) == "Color3" then
+                    -- Hover and focus colors can differ from the registered resting
+                    -- role. Re-detect exact palette colors when possible; keep the
+                    -- registered role during an interrupted transition.
+                    if oldTheme[role] ~= current then
+                        local redetected = themeKeyForColor(current, propName, oldTheme)
+                        if redetected then role = redetected; roles[propName] = role end
                     end
-                    roles[propName] = role
                     local target = newTheme[role]
-                    if target ~= current then
+                    if target and target ~= current then
                         changes[#changes + 1] = {
                             object = obj,
                             property = propName,
@@ -282,12 +267,9 @@ local function collectThemeChanges(root, oldTheme, newTheme)
                             to = target,
                             role = role,
                         }
+                    elseif not target and #misses < 60 then
+                        misses[#misses + 1] = { path = pathOf(obj), prop = propName, color = current, reason = "theme role missing" }
                     end
-                elseif #misses < 60 then
-                    misses[#misses + 1] = {
-                        path = pathOf(obj), prop = propName, color = current,
-                        reason = "no theme role match",
-                    }
                 end
             end
         end
@@ -353,11 +335,13 @@ local function setTheme(name)
     local newAccent = newThemeSnapshot.Accent or Theme.Accent
     local newAccentHover = newThemeSnapshot.AccentHover or newAccent
 
-    local function finishThemeTransition()
+    local function finishThemeTransition(colorsAlreadyApplied)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-        for _, change in ipairs(changes) do
-            if change.object and change.object.Parent then
-                pcall(function() change.object[change.property] = change.to end)
+        if not colorsAlreadyApplied then
+            for _, change in ipairs(changes) do
+                if change.object and change.object.Parent then
+                    pcall(function() change.object[change.property] = change.to end)
+                end
             end
         end
         if overlay and overlay.Parent then
@@ -405,6 +389,30 @@ local function setTheme(name)
         return #misses == 0
     end
 
+    -- Large interfaces can have hundreds of registered color properties. Updating
+    -- every property on every animation frame stalls the render thread. Apply those
+    -- colors once, then animate the lightweight full-window wash for a smooth
+    -- transition. Small changes retain the precise per-property interpolation.
+    local useOverlayOnly = #changes > 120
+    if useOverlayOnly then
+        for _, change in ipairs(changes) do
+            if change.object and change.object.Parent then
+                pcall(function() change.object[change.property] = change.to end)
+            end
+        end
+        if overlay and overlay.Parent then
+            overlay.BackgroundColor3 = overlayStartBg
+            overlay.BackgroundTransparency = 0.62
+        end
+        if overlayGradient then
+            overlayGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, oldAccent),
+                ColorSequenceKeypoint.new(0.5, oldAccentHover),
+                ColorSequenceKeypoint.new(1, oldAccent),
+            })
+        end
+    end
+
     -- One shared progress tween drives every affected color. This avoids creating
     -- hundreds of individual property tweens and ensures the entire UI transitions
     -- together instead of changing control-by-control.
@@ -415,19 +423,21 @@ local function setTheme(name)
 
     local function applyProgress(alpha)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-        for _, change in ipairs(changes) do
-            local obj = change.object
-            if obj and obj.Parent then
-                pcall(function()
-                    obj[change.property] = change.from:Lerp(change.to, alpha)
-                end)
+        if not useOverlayOnly then
+            for _, change in ipairs(changes) do
+                local obj = change.object
+                if obj and obj.Parent then
+                    pcall(function()
+                        obj[change.property] = change.from:Lerp(change.to, alpha)
+                    end)
+                end
             end
         end
         if overlay and overlay.Parent then
             overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
             -- A subtle wash gives the transition a cohesive gradient feel without
             -- hiding the UI or blocking input.
-            overlay.BackgroundTransparency = 0.965 + (0.035 * alpha)
+            overlay.BackgroundTransparency = (useOverlayOnly and 0.62 or 0.965) + ((useOverlayOnly and 0.38 or 0.035) * alpha)
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -448,7 +458,7 @@ local function setTheme(name)
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
         if playbackState == Enum.PlaybackState.Completed then
-            finishThemeTransition()
+            finishThemeTransition(useOverlayOnly)
         end
     end)
     RuntimeDiagnostics.ActiveThemeTween:Play()
