@@ -80,8 +80,27 @@ end -- script-library helper scope
 --============================================================
 --// SANDBOX
 --============================================================
-local Sandbox = { Enabled = false, History = {}, MaxHistory = 40, _running = false }
+local Sandbox = {
+    Enabled = false,
+    History = {},
+    MaxHistory = 40,
+    _running = false,
+    _runningThread = nil,
+    _runningDepth = 0,
+    MaxNestedDepth = 6,
+}
 _G.Sandbox = Sandbox
+
+-- Stable fallback for runtimes where coroutine.running() returns nil.
+local SANDBOX_MAIN_THREAD = {}
+
+local function currentSandboxThread()
+    if type(coroutine) == "table" and type(coroutine.running) == "function" then
+        local ok, thread = pcall(coroutine.running)
+        if ok and thread ~= nil then return thread end
+    end
+    return SANDBOX_MAIN_THREAD
+end
 
 local function safeSerialize(value, depth)
     depth = depth or 0
@@ -142,7 +161,43 @@ local function buildSandboxEnv(captured)
     env.saveHubScript = _G.saveHubScript
     env.editHubScript = _G.editHubScript
     env.editHubScriptLine = _G.editHubScriptLine
-    env.runHubScript = _G.runHubScript
+    -- Run a saved script as a nested sandbox operation. Include its real status,
+    -- captured output, and error in the parent tool output so the AI cannot mistake
+    -- pcall success (the helper call itself) for successful script execution.
+    env.runHubScript = function(name)
+        local scriptRunner = _G.runHubScript
+        if type(scriptRunner) ~= "function" then
+            local failure = { ok = false, error = "runHubScript is unavailable.", output = "" }
+            captured[#captured + 1] = "[runHubScript] FAILED: " .. failure.error
+            return failure
+        end
+
+        local callOk, result = pcall(scriptRunner, name)
+        if not callOk then
+            local failure = { ok = false, error = tostring(result), output = "" }
+            captured[#captured + 1] = ("[runHubScript %s] FAILED: %s"):format(tostring(name), failure.error)
+            return failure
+        end
+
+        if type(result) ~= "table" then
+            captured[#captured + 1] = ("[runHubScript %s] returned an unexpected %s value"):format(tostring(name), typeof(result))
+            return { ok = false, error = "runHubScript returned an invalid result.", output = "" }
+        end
+
+        captured[#captured + 1] = ("[runHubScript %s] %s"):format(
+            tostring(name), result.ok and "EXECUTED" or "FAILED"
+        )
+        if type(result.output) == "string" and result.output ~= "" then
+            captured[#captured + 1] = "[runHubScript output] " .. result.output
+        end
+        if result.result ~= nil then
+            captured[#captured + 1] = "[runHubScript result] " .. tostring(result.result)
+        end
+        if result.error ~= nil and tostring(result.error) ~= "" then
+            captured[#captured + 1] = "[runHubScript error] " .. tostring(result.error)
+        end
+        return result
+    end
     env.inspect = function(obj, depth)
         if typeof(obj) ~= "Instance" then
             captured[#captured + 1] = safeSerialize(obj)
@@ -221,47 +276,98 @@ local function buildSandboxEnv(captured)
 end
 
 local function runInSandbox(code)
-    if Sandbox._running then return { ok = false, error = "Another sandbox execution is running.", output = "" } end
-    Sandbox._running = true
-    local captured = {}
-    local loader = loadstring
-    if type(loader) ~= "function" and type(getgenv) == "function" then
-        local envOk, executorEnv = pcall(getgenv)
-        if envOk and type(executorEnv) == "table" then loader = executorEnv.loadstring end
+    -- A tagged [EXECUTE] block may call runHubScript(), which itself invokes
+    -- runInSandbox(). Permit that *synchronous nested call on the same coroutine*,
+    -- while still refusing independent/concurrent executions and runaway recursion.
+    local thread = currentSandboxThread()
+    local wasRunning = Sandbox._running == true
+
+    if wasRunning and Sandbox._runningThread ~= thread then
+        return { ok = false, error = "Another sandbox execution is running in a different task.", output = "" }
     end
-    if type(loader) ~= "function" then
-        Sandbox._running = false
-        return { ok = false, error = "loadstring is not available in this runtime.", output = "" }
+
+    local depthBefore = tonumber(Sandbox._runningDepth)
+    if depthBefore == nil then depthBefore = wasRunning and 1 or 0 end
+    if wasRunning and depthBefore >= (tonumber(Sandbox.MaxNestedDepth) or 6) then
+        return { ok = false, error = "Maximum nested sandbox depth reached.", output = "" }
     end
-    local loadOk, fn, compileErr = pcall(loader, code, "=sandbox")
-    if not loadOk then
-        Sandbox._running = false
-        return { ok = false, error = "compile: " .. tostring(fn), output = "" }
+
+    if not wasRunning then
+        Sandbox._running = true
+        Sandbox._runningThread = thread
+        depthBefore = 0
     end
-    if type(fn) ~= "function" then
-        Sandbox._running = false
-        return { ok = false, error = "compile: " .. tostring(compileErr or "loader returned no function"), output = "" }
+    Sandbox._runningDepth = depthBefore + 1
+
+    local function releaseExecutionSlot()
+        local depth = math.max(0, (tonumber(Sandbox._runningDepth) or 1) - 1)
+        Sandbox._runningDepth = depth
+        if depth == 0 then
+            Sandbox._running = false
+            Sandbox._runningThread = nil
+        end
     end
-    local envOk, env = pcall(buildSandboxEnv, captured)
-    if not envOk then
-        Sandbox._running = false
-        return { ok = false, error = "sandbox setup: " .. tostring(env), output = "" }
+
+    -- Keep releaseExecutionSlot outside this protected body so every return and
+    -- unexpected internal error releases the lock correctly.
+    local bodyOk, bodyResult = pcall(function()
+        if type(code) ~= "string" then
+            return { ok = false, error = "Sandbox code must be a string.", output = "" }
+        end
+
+        local captured = {}
+        local loader = type(loadstring) == "function" and loadstring or nil
+        if not loader and type(getgenv) == "function" then
+            local envOk, executorEnv = pcall(getgenv)
+            if envOk and type(executorEnv) == "table" and type(executorEnv.loadstring) == "function" then
+                loader = executorEnv.loadstring
+            end
+        end
+        if type(loader) ~= "function" then
+            return { ok = false, error = "loadstring is not available in this runtime.", output = "" }
+        end
+
+        local loadOk, fn, compileErr = pcall(loader, code, "=sandbox")
+        if not loadOk then
+            return { ok = false, error = "compile: " .. tostring(fn), output = "" }
+        end
+        if type(fn) ~= "function" then
+            return { ok = false, error = "compile: " .. tostring(compileErr or "loader returned no function"), output = "" }
+        end
+
+        local envOk, env = pcall(buildSandboxEnv, captured)
+        if not envOk then
+            return { ok = false, error = "sandbox setup: " .. tostring(env), output = "" }
+        end
+        if type(setfenv) == "function" then
+            local setEnvOk, setEnvError = pcall(setfenv, fn, env)
+            if not setEnvOk then
+                return { ok = false, error = "sandbox environment setup: " .. tostring(setEnvError), output = "" }
+            end
+        end
+
+        local executionOk, value = pcall(fn)
+        local entry = {
+            code = code,
+            ok = executionOk,
+            output = table.concat(captured, "\n"),
+            result = executionOk and safeSerialize(value) or nil,
+            error = (not executionOk) and tostring(value) or nil,
+            ts = os.clock(),
+        }
+        Sandbox.History[#Sandbox.History + 1] = entry
+        if #Sandbox.History > Sandbox.MaxHistory then table.remove(Sandbox.History, 1) end
+        debugTrace(executionOk and "INFO" or "WARN", ("sandbox %s · %d bytes · %d output lines%s")
+            :format(executionOk and "OK" or "FAIL", #code, #captured,
+                executionOk and "" or (" · " .. (entry.error or "?"))))
+        return entry
+    end)
+
+    releaseExecutionSlot()
+    if not bodyOk then
+        return { ok = false, error = "sandbox internal error: " .. tostring(bodyResult), output = "" }
     end
-    if type(setfenv) == "function" then pcall(setfenv, fn, env) end
-    local ok, result = pcall(fn)
-    Sandbox._running = false
-    local entry = {
-        code = code, ok = ok,
-        output = table.concat(captured, "\n"),
-        result = ok and safeSerialize(result) or nil,
-        error = (not ok) and tostring(result) or nil,
-        ts = os.clock(),
-    }
-    Sandbox.History[#Sandbox.History + 1] = entry
-    if #Sandbox.History > Sandbox.MaxHistory then table.remove(Sandbox.History, 1) end
-    debugTrace(ok and "INFO" or "WARN", ("sandbox %s · %d bytes · %d output lines%s")
-        :format(ok and "OK" or "FAIL", #code, #captured, ok and "" or (" · " .. (entry.error or "?"))))
-    return entry
+    return bodyResult
 end
 _G.runInSandbox = runInSandbox
 
