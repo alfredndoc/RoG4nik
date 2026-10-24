@@ -14,7 +14,7 @@
 --// Services
 local UIRefs = {}
 UIRefs.Players = game:GetService("Players")
-UIRefs.TweenService = game:GetService("TweenService")
+local TweenService = game:GetService("TweenService")
 UIRefs.UserInputService = game:GetService("UserInputService")
 UIRefs.RunService = game:GetService("RunService")
 UIRefs.HttpService = game:GetService("HttpService")
@@ -31,7 +31,7 @@ local saveSettings
 --============================================================
 --// AI STATE / PERSISTENCE
 --============================================================
-UIRefs.AI = {
+local AI = {
     Provider  = "DeepSeek",
     Model     = "deepseek-flash",
     ApiKey    = "",
@@ -76,25 +76,25 @@ local function loadSettings()
             local data = readfile(UIRefs.SETTINGS_FILE)
             if data and data ~= "" then
                 local d = UIRefs.HttpService:JSONDecode(data)
-                if d.Provider and UIRefs.ProviderPresets[d.Provider] then UIRefs.AI.Provider = d.Provider end
-                if type(d.Model) == "string" then UIRefs.AI.Model = d.Model end
-                if type(d.ApiKey) == "string" then UIRefs.AI.ApiKey = d.ApiKey end
-                if type(d.CustomEndpoint) == "string" then UIRefs.AI.CustomEndpoint = d.CustomEndpoint end
-                if d.Effort and ({ Minimal = true, Low = true, Medium = true, High = true, Maximum = true })[d.Effort] then UIRefs.AI.Effort = d.Effort end
-                if type(d.Temperature) == "number" then UIRefs.AI.Temperature = math.clamp(d.Temperature, 0, 2) end
-                if type(d.MaxTokens) == "number" then UIRefs.AI.MaxTokens = math.clamp(math.floor(d.MaxTokens), 128, 16384) end
-                if type(d.ContextMessages) == "number" then UIRefs.AI.ContextMessages = math.clamp(math.floor(d.ContextMessages), 2, 100) end
-                if type(d.RequestTimeout) == "number" then UIRefs.AI.RequestTimeout = math.clamp(math.floor(d.RequestTimeout), 5, 120) end
-                if type(d.SystemPrompt) == "string" then UIRefs.AI.SystemPrompt = d.SystemPrompt end
-                if type(d.DisableSummarization) == "boolean" then UIRefs.AI.DisableSummarization = d.DisableSummarization end
-                if type(d.SaveHistory) == "boolean" then UIRefs.AI.SaveHistory = d.SaveHistory end
-                if type(d.EnterToSend) == "boolean" then UIRefs.AI.EnterToSend = d.EnterToSend end
-                if type(d.AutoScroll) == "boolean" then UIRefs.AI.AutoScroll = d.AutoScroll end
-                if type(d.AutoExecute) == "boolean" then UIRefs.AI.AutoExecute = d.AutoExecute end
-                if type(d.SandboxMode) == "boolean" then UIRefs.AI.SandboxMode = d.SandboxMode end
-                if type(d.CaptureOutput) == "boolean" then UIRefs.AI.CaptureOutput = d.CaptureOutput end
-                if type(d.MaxToolIterations) == "number" then UIRefs.AI.MaxToolIterations = math.clamp(math.floor(d.MaxToolIterations), 1, 10) end
-                if type(d.IncludeWorkspace) == "boolean" then UIRefs.AI.IncludeWorkspace = d.IncludeWorkspace end
+                if d.Provider and UIRefs.ProviderPresets[d.Provider] then AI.Provider = d.Provider end
+                if type(d.Model) == "string" then AI.Model = d.Model end
+                if type(d.ApiKey) == "string" then AI.ApiKey = d.ApiKey end
+                if type(d.CustomEndpoint) == "string" then AI.CustomEndpoint = d.CustomEndpoint end
+                if d.Effort and ({ Minimal = true, Low = true, Medium = true, High = true, Maximum = true })[d.Effort] then AI.Effort = d.Effort end
+                if type(d.Temperature) == "number" then AI.Temperature = math.clamp(d.Temperature, 0, 2) end
+                if type(d.MaxTokens) == "number" then AI.MaxTokens = math.clamp(math.floor(d.MaxTokens), 128, 16384) end
+                if type(d.ContextMessages) == "number" then AI.ContextMessages = math.clamp(math.floor(d.ContextMessages), 2, 100) end
+                if type(d.RequestTimeout) == "number" then AI.RequestTimeout = math.clamp(math.floor(d.RequestTimeout), 5, 120) end
+                if type(d.SystemPrompt) == "string" then AI.SystemPrompt = d.SystemPrompt end
+                if type(d.DisableSummarization) == "boolean" then AI.DisableSummarization = d.DisableSummarization end
+                if type(d.SaveHistory) == "boolean" then AI.SaveHistory = d.SaveHistory end
+                if type(d.EnterToSend) == "boolean" then AI.EnterToSend = d.EnterToSend end
+                if type(d.AutoScroll) == "boolean" then AI.AutoScroll = d.AutoScroll end
+                if type(d.AutoExecute) == "boolean" then AI.AutoExecute = d.AutoExecute end
+                if type(d.SandboxMode) == "boolean" then AI.SandboxMode = d.SandboxMode end
+                if type(d.CaptureOutput) == "boolean" then AI.CaptureOutput = d.CaptureOutput end
+                if type(d.MaxToolIterations) == "number" then AI.MaxToolIterations = math.clamp(math.floor(d.MaxToolIterations), 1, 10) end
+                if type(d.IncludeWorkspace) == "boolean" then AI.IncludeWorkspace = d.IncludeWorkspace end
                 if d.Theme and Themes[d.Theme] then
                     ThemeEngine.CurrentThemeName = d.Theme
                     ThemeEngine.applyThemePreset(d.Theme)
@@ -102,7 +102,7 @@ local function loadSettings()
             end
         end
     end)
-    UIRefs.AI.Endpoint = UIRefs.AI.Provider == "Custom" and UIRefs.AI.CustomEndpoint or UIRefs.ProviderPresets[UIRefs.AI.Provider].endpoint
+    AI.Endpoint = AI.Provider == "Custom" and AI.CustomEndpoint or UIRefs.ProviderPresets[AI.Provider].endpoint
 end
 loadSettings()
 
@@ -110,16 +110,16 @@ saveSettings = function()
     pcall(function()
         if writefile then
             writefile(UIRefs.SETTINGS_FILE, UIRefs.HttpService:JSONEncode({
-                Provider = UIRefs.AI.Provider, Model = UIRefs.AI.Model, ApiKey = UIRefs.AI.ApiKey,
-                CustomEndpoint = UIRefs.AI.CustomEndpoint, Theme = ThemeEngine.CurrentThemeName, Effort = UIRefs.AI.Effort,
-                Temperature = UIRefs.AI.Temperature, MaxTokens = UIRefs.AI.MaxTokens,
-                ContextMessages = UIRefs.AI.ContextMessages, RequestTimeout = UIRefs.AI.RequestTimeout,
-                SystemPrompt = UIRefs.AI.SystemPrompt, SaveHistory = UIRefs.AI.SaveHistory,
-                DisableSummarization = UIRefs.AI.DisableSummarization,
-                EnterToSend = UIRefs.AI.EnterToSend, AutoScroll = UIRefs.AI.AutoScroll,
-                AutoExecute = UIRefs.AI.AutoExecute, SandboxMode = UIRefs.AI.SandboxMode,
-                CaptureOutput = UIRefs.AI.CaptureOutput, MaxToolIterations = UIRefs.AI.MaxToolIterations,
-                IncludeWorkspace = UIRefs.AI.IncludeWorkspace,
+                Provider = AI.Provider, Model = AI.Model, ApiKey = AI.ApiKey,
+                CustomEndpoint = AI.CustomEndpoint, Theme = ThemeEngine.CurrentThemeName, Effort = AI.Effort,
+                Temperature = AI.Temperature, MaxTokens = AI.MaxTokens,
+                ContextMessages = AI.ContextMessages, RequestTimeout = AI.RequestTimeout,
+                SystemPrompt = AI.SystemPrompt, SaveHistory = AI.SaveHistory,
+                DisableSummarization = AI.DisableSummarization,
+                EnterToSend = AI.EnterToSend, AutoScroll = AI.AutoScroll,
+                AutoExecute = AI.AutoExecute, SandboxMode = AI.SandboxMode,
+                CaptureOutput = AI.CaptureOutput, MaxToolIterations = AI.MaxToolIterations,
+                IncludeWorkspace = AI.IncludeWorkspace,
             }))
         end
     end)
@@ -806,7 +806,7 @@ local function refreshConversationStyles()
 end
 
 local function scrollChatToBottom()
-    if not UIRefs.AI.AutoScroll then return end
+    if not AI.AutoScroll then return end
     task.defer(function()
         task.wait()
         local maxY = math.max(0, UIRefs.ChatDisplay.AbsoluteCanvasSize.Y - UIRefs.ChatDisplay.AbsoluteSize.Y)
@@ -917,7 +917,7 @@ UIRefs.SendBtn = create("ImageButton", {
 corner(UIRefs.SendBtn, 11)
 UIRefs.SendStroke = stroke(UIRefs.SendBtn, Theme.Accent, 1, 1)
 UIRefs.SendScale = create("UIScale", { Scale = 1 }, UIRefs.SendBtn)
-UIRefs.AI.StopGlyph = create("TextLabel", {
+AI.StopGlyph = create("TextLabel", {
     Name = "StopGlyph", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
     Text = "■", TextColor3 = Theme.White, Font = Theme.FontBold, TextSize = 15,
     Visible = false, ZIndex = 13,
@@ -942,7 +942,7 @@ create("TextLabel", {
 
 local effortLevelNames = { "Minimal", "Low", "Medium", "High", "Maximum" }
 local effortIndex = 3
-for i, name in ipairs(effortLevelNames) do if name == UIRefs.AI.Effort then effortIndex = i end end
+for i, name in ipairs(effortLevelNames) do if name == AI.Effort then effortIndex = i end end
 
 UIRefs.EffortColors = {
     Color3.fromRGB(77, 132, 255), Color3.fromRGB(105, 124, 255),
@@ -1009,7 +1009,7 @@ setEffortIndex = function(i)
         tween(lbl, { TextColor3 = active and Theme.PrimaryText or Theme.MutedText }, 0.18)
         lbl.Font = active and Theme.FontBold or Theme.Font
     end
-    UIRefs.AI.Effort = effortLevelNames[effortIndex]
+    AI.Effort = effortLevelNames[effortIndex]
     if changed then debugTrace("INFO", "Effort → " .. AI.Effort) end
     saveSettings()
 end
@@ -1143,7 +1143,7 @@ local function performMenuAction(index)
         if index == 1 and createNewConversation then createNewConversation()
         elseif index == 2 then
             -- Share the same exclusive-navigation path as the sidebar button.
-            if UIRefs.AI.OpenSettingsView then UIRefs.AI.OpenSettingsView() end
+            if AI.OpenSettingsView then AI.OpenSettingsView() end
         elseif index == 3 then UIRefs.ScreenGui.Enabled = false end
     elseif mode == "plus" then
         if index == 1 then
@@ -1194,7 +1194,7 @@ createNewConversation = function()
     showConversation(id)
     if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Text = "A fresh start.\n\nType a message below to begin." end
     pcall(function()
-        if UIRefs.AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
+        if AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
     end)
     if activeView == "settings" then
         -- A new conversation should switch through the same tab state machine,
@@ -1204,7 +1204,7 @@ createNewConversation = function()
         else
             activeView = "chat"
             activeTab = "Chat"
-            if UIRefs.AI.UpdateUIForTab then UIRefs.AI.UpdateUIForTab("Chat") end
+            if AI.UpdateUIForTab then AI.UpdateUIForTab("Chat") end
         end
     end
 end
@@ -1222,7 +1222,7 @@ clearConversationById = function(id)
         end
     end
     pcall(function()
-        if UIRefs.AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
+        if AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
     end)
 end
 
@@ -1254,7 +1254,7 @@ deleteConversationById = function(id)
         showConversation(conversations[math.clamp(removedIndex, 1, #conversations)].id)
     end
     pcall(function()
-        if UIRefs.AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
+        if AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
     end)
 end
 
@@ -1263,7 +1263,7 @@ UIRefs.NewConvoBtn.MouseButton1Click:Connect(createNewConversation)
 --============================================================
 --// TABS
 --============================================================
-UIRefs.AI.UpdateUIForTab = function(tab)
+AI.UpdateUIForTab = function(tab)
     -- Hide every sibling content root first. This prevents stale tab surfaces
     -- from remaining visible underneath Settings regardless of which button or
     -- menu action opened it.
@@ -1291,11 +1291,11 @@ UIRefs.AI.UpdateUIForTab = function(tab)
     end
 end
 
-UIRefs.AI.OpenSettingsView = function()
+AI.OpenSettingsView = function()
     activeView = "settings"
     if setMenuOpen then setMenuOpen(nil) end
     if toggleEffortPopup then toggleEffortPopup(false) end
-    if UIRefs.AI.UpdateUIForTab then UIRefs.AI.UpdateUIForTab(activeTab) end
+    if AI.UpdateUIForTab then AI.UpdateUIForTab(activeTab) end
     if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "Settings" end
     if UIRefs.ChatSub then UIRefs.ChatSub.Text = "Customize your workspace" end
 end
@@ -1320,7 +1320,7 @@ setActiveTab = function(name)
     if UIRefs.ChatSub then
         UIRefs.ChatSub.Text = (name == "Scripts" and "Script library") or (name == "Chat" and "A focused conversation") or "Code workspace"
     end
-    UIRefs.AI.UpdateUIForTab(name)
+    AI.UpdateUIForTab(name)
 end
 
 UIRefs.CoworkTab.MouseButton1Click:Connect(function() setActiveTab("Scripts") end)
@@ -1330,10 +1330,10 @@ UIRefs.CodeTab.MouseButton1Click:Connect(function() setActiveTab("Code") end)
 --============================================================
 --// SIDEBAR AFFORDANCES
 --============================================================
-UIRefs.AI.SearchOpen = false
+AI.SearchOpen = false
 UIRefs.SearchButton.MouseButton1Click:Connect(function()
-    UIRefs.AI.SearchOpen = not UIRefs.AI.SearchOpen
-    if UIRefs.AI.SearchOpen then
+    AI.SearchOpen = not AI.SearchOpen
+    if AI.SearchOpen then
         UIRefs.InputBox.PlaceholderText = "Search conversations or type a message..."
         UIRefs.InputBox:CaptureFocus()
     else
@@ -1361,7 +1361,7 @@ UIRefs.ForwardButton.MouseButton1Click:Connect(function()
     if prev then showConversation(prev.id) end
 end)
 UIRefs.SettingsButton.MouseButton1Click:Connect(function()
-    UIRefs.AI.OpenSettingsView()
+    AI.OpenSettingsView()
 end)
 UIRefs.FoldersButton.MouseButton1Click:Connect(function()
     if UIRefs.EmptyChatLabel then
@@ -1378,7 +1378,7 @@ UIRefs.WindowState = { state = "normal", normalSize = UIRefs.WINDOW_SIZE, normal
 UIRefs.WindowState.setBodyVisible = function(visible)
     if UIRefs.Footer then UIRefs.Footer.Visible = visible end
     if UIRefs.SidebarScroll then UIRefs.SidebarScroll.Visible = visible end
-    if visible then UIRefs.AI.UpdateUIForTab(activeTab)
+    if visible then AI.UpdateUIForTab(activeTab)
     else
         if UIRefs.ChatDisplay then UIRefs.ChatDisplay.Visible = false end
         if UIRefs.InputBar then UIRefs.InputBar.Visible = false end
@@ -1522,7 +1522,7 @@ end)
 --============================================================
 setSidebarWidth(UIRefs.SIDEBAR_START)
 refreshConversationStyles()
-UIRefs.AI.RefreshSendButton()
+AI.RefreshSendButton()
 
 if selectedConversationId then
     showConversation(selectedConversationId)
@@ -1540,4 +1540,4 @@ setActiveTab("Scripts")
 UIRefs.ScriptUI.refreshCards()
 debugTrace("INFO", "UI boot complete · theme=" .. ThemeEngine.CurrentThemeName ..
     " · provider=" .. AI.Provider .. " · model=" .. AI.Model ..
-    " · autoExec=" .. tostring(UIRefs.AI.AutoExecute))
+    " · autoExec=" .. tostring(AI.AutoExecute))
