@@ -7,9 +7,10 @@ local ProviderDropdownMenu, closeProviderDropdown, closeThemeDropdown
 local AISettingsScroll, ThemeSettingsScroll
 local setSettingsTab
 local themeAdvancedControls
-local themeSimpleButton, themeAdvancedButton, themeTransparencyInput, themeGlossInput
+local themeSimpleButton, themeAdvancedButton, themeGlassButton, themeTransparencyInput, themeGlossInput
 local themeGradientButton, themeGradientRotationInput, themeGradientStrengthInput
-local themeGradientStartInput, themeGradientEndInput
+local themeGradientStartButton, themeGradientEndButton
+local GradientColorPicker, GradientColorPickerBackdrop
 local function refreshThemeControls() end
 do
 SettingsView = create("Frame", {
@@ -224,6 +225,7 @@ local function applySavedAppearance()
     ThemeEngine.setAppearanceSettings({
         Simple = AI.ThemeSimple,
         Advanced = AI.ThemeAdvanced,
+        Glass = AI.ThemeGlass,
         Transparency = AI.ThemeTransparency,
         Gloss = AI.ThemeGloss,
         Gradient = AI.ThemeGradient,
@@ -278,7 +280,7 @@ themeAdvancedButton.MouseButton1Click:Connect(function()
 end)
 
 themeAdvancedControls = create("Frame", {
-    Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 280 or 0), BackgroundTransparency = 1, LayoutOrder = 5,
+    Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 320 or 0), BackgroundTransparency = 1, LayoutOrder = 5,
     Visible = AI.ThemeAdvanced, ZIndex = 7,
 }, AppearanceSection)
 create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, themeAdvancedControls)
@@ -295,9 +297,9 @@ local function makeAppearanceInput(title, value, order, placeholder)
     stroke(input, Theme.Border, 1, 0.45)
     return input
 end
-local function makeGradientToggle(order)
+local function makeAppearanceToggle(title, order)
     local row = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7 }, themeAdvancedControls)
-    makeAppearanceLabel("Gradient", 1, row).Size = UDim2.new(1, -105, 1, 0)
+    makeAppearanceLabel(title, 1, row).Size = UDim2.new(1, -105, 1, 0)
     local button = create("TextButton", {
         AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(92, 26),
         BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, Text = "OFF", TextColor3 = Theme.PrimaryText,
@@ -306,14 +308,33 @@ local function makeGradientToggle(order)
     corner(button, 7)
     return button
 end
+local function makeColorSelector(title, value, order)
+    local row = create("Frame", { Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 7 }, themeAdvancedControls)
+    makeAppearanceLabel(title, 1, row).Size = UDim2.new(1, -105, 1, 0)
+    local chip = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(92, 30),
+        BackgroundColor3 = value, BorderSizePixel = 0, Text = "Choose", TextColor3 = Theme.PrimaryText,
+        Font = Theme.FontBold, TextSize = 10, AutoButtonColor = false, ZIndex = 8,
+    }, row)
+    corner(chip, 8)
+    stroke(chip, Theme.Border, 1, 0.2)
+    return chip
+end
 
-themeTransparencyInput = makeAppearanceInput("Transparency (%)", math.floor(AI.ThemeTransparency * 100 + 0.5), 1, "0–100")
-themeGlossInput = makeAppearanceInput("Gloss (%)", math.floor(AI.ThemeGloss * 100 + 0.5), 2, "0–100")
-themeGradientButton = makeGradientToggle(3)
-themeGradientRotationInput = makeAppearanceInput("Gradient direction (°)", AI.ThemeGradientRotation, 4, "0–360")
-themeGradientStrengthInput = makeAppearanceInput("Gradient strength (%)", math.floor(AI.ThemeGradientStrength * 100 + 0.5), 5, "0–100")
-themeGradientStartInput = makeAppearanceInput("Gradient start RGB", AI.ThemeGradientStartRGB, 6, "255, 255, 255")
-themeGradientEndInput = makeAppearanceInput("Gradient end RGB", AI.ThemeGradientEndRGB, 7, "224, 228, 240")
+themeGlassButton = makeAppearanceToggle("Glass effect", 1)
+themeTransparencyInput = makeAppearanceInput("Transparency (%)", math.floor(AI.ThemeTransparency * 100 + 0.5), 2, "0–100")
+themeGlossInput = makeAppearanceInput("Gloss (%)", math.floor(AI.ThemeGloss * 100 + 0.5), 3, "0–100")
+themeGradientButton = makeAppearanceToggle("Gradient overlay", 4)
+themeGradientRotationInput = makeAppearanceInput("Gradient direction (°)", AI.ThemeGradientRotation, 5, "0–360")
+themeGradientStrengthInput = makeAppearanceInput("Gradient strength (%)", math.floor(AI.ThemeGradientStrength * 100 + 0.5), 6, "0–100")
+themeGradientStartButton = makeColorSelector("Gradient start color", Color3.new(1, 1, 1), 7)
+themeGradientEndButton = makeColorSelector("Gradient end color", Color3.fromRGB(224, 228, 240), 8)
+
+themeGlassButton.MouseButton1Click:Connect(function()
+    AI.ThemeGlass = not AI.ThemeGlass
+    refreshThemeControls()
+    applySavedAppearance()
+end)
 themeGradientButton.MouseButton1Click:Connect(function()
     AI.ThemeGradient = not AI.ThemeGradient
     refreshThemeControls()
@@ -338,37 +359,213 @@ themeGradientRotationInput.FocusLost:Connect(function()
     themeGradientRotationInput.Text = tostring(AI.ThemeGradientRotation)
     applySavedAppearance()
 end)
-local function bindRgbInput(input, key)
-    input.FocusLost:Connect(function()
-        local red, green, blue = input.Text:match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-        if red then
-            AI[key] = ("%d, %d, %d"):format(
-                math.clamp(tonumber(red), 0, 255),
-                math.clamp(tonumber(green), 0, 255),
-                math.clamp(tonumber(blue), 0, 255)
-            )
+
+local function colorFromRgbText(value)
+    local red, green, blue = tostring(value or ""):match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
+    if not red then return Color3.new(1, 1, 1) end
+    return Color3.fromRGB(math.clamp(tonumber(red), 0, 255), math.clamp(tonumber(green), 0, 255), math.clamp(tonumber(blue), 0, 255))
+end
+local function rgbTextFromColor(color)
+    return ("%d, %d, %d"):format(
+        math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5)
+    )
+end
+
+-- Compact HSV color picker with the same continuous rainbow rail shown in the reference.
+GradientColorPickerBackdrop = create("TextButton", {
+    Name = "GradientColorPickerBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+    Text = "", AutoButtonColor = false, Visible = false, ZIndex = 118,
+}, UIRefs.MainFrame)
+GradientColorPicker = create("Frame", {
+    Name = "GradientColorPicker", Size = UDim2.fromOffset(280, 192), BackgroundColor3 = Theme.PanelRaised,
+    BorderSizePixel = 0, Visible = false, ZIndex = 119,
+}, UIRefs.MainFrame)
+corner(GradientColorPicker, 12)
+stroke(GradientColorPicker, Theme.Border, 1, 0.12)
+local PickerTitle = create("TextLabel", {
+    Position = UDim2.new(0, 14, 0, 10), Size = UDim2.new(1, -60, 0, 20), BackgroundTransparency = 1,
+    Text = "Gradient color", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 120,
+}, GradientColorPicker)
+local PickerCloseButton = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 7), Size = UDim2.fromOffset(24, 24),
+    BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, Text = "×", TextColor3 = Theme.MutedText,
+    Font = Theme.FontBold, TextSize = 16, AutoButtonColor = false, ZIndex = 120,
+}, GradientColorPicker)
+corner(PickerCloseButton, 7)
+local PickerColorPreview = create("Frame", {
+    Position = UDim2.new(0, 14, 0, 38), Size = UDim2.new(1, -28, 0, 24),
+    BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 120,
+}, GradientColorPicker)
+corner(PickerColorPreview, 7)
+stroke(PickerColorPreview, Theme.Border, 1, 0.2)
+local PickerRgbLabel = create("TextLabel", {
+    Position = UDim2.new(0, 14, 0, 67), Size = UDim2.new(1, -28, 0, 16), BackgroundTransparency = 1,
+    Text = "255, 255, 255", TextColor3 = Theme.MutedText, Font = Theme.FontCode, TextSize = 10,
+    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 120,
+}, GradientColorPicker)
+local pickerHue, pickerSaturation, pickerValue = 0, 0, 1
+local activePickerKey, activePickerButton, activePickerTrack
+local pickerTracks = {}
+local pickerRainbow = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(1 / 6, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(2 / 6, Color3.fromRGB(0, 255, 0)),
+    ColorSequenceKeypoint.new(3 / 6, Color3.fromRGB(0, 255, 255)),
+    ColorSequenceKeypoint.new(4 / 6, Color3.fromRGB(0, 0, 255)),
+    ColorSequenceKeypoint.new(5 / 6, Color3.fromRGB(255, 0, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),
+})
+local function makePickerTrack(label, y, gradientColors)
+    create("TextLabel", {
+        Position = UDim2.new(0, 14, 0, y - 1), Size = UDim2.fromOffset(18, 16), BackgroundTransparency = 1,
+        Text = label, TextColor3 = Theme.MutedText, Font = Theme.FontBold, TextSize = 9,
+        TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 120,
+    }, GradientColorPicker)
+    local track = create("Frame", {
+        Position = UDim2.new(0, 38, 0, y), Size = UDim2.new(1, -54, 0, 14),
+        BackgroundTransparency = 1, BorderSizePixel = 0, Active = true, ZIndex = 120,
+    }, GradientColorPicker)
+    corner(track, 7)
+    local fill = create("Frame", {
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1),
+        BorderSizePixel = 0, Active = false, ZIndex = 120,
+    }, track)
+    corner(fill, 7)
+    local gradient = create("UIGradient", { Color = gradientColors }, fill)
+    local thumb = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Theme.PrimaryText,
+        BorderSizePixel = 0, Active = false, ZIndex = 121,
+    }, track)
+    corner(thumb, 8)
+    stroke(thumb, Theme.SegmentedBg, 1.5, 0)
+    local spec = { Track = track, Fill = fill, Gradient = gradient, Thumb = thumb }
+    pickerTracks[label] = spec
+    return spec
+end
+local hueTrack = makePickerTrack("H", 92, pickerRainbow)
+local saturationTrack = makePickerTrack("S", 122, ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(255, 0, 0)))
+local valueTrack = makePickerTrack("V", 152, ColorSequence.new(Color3.new(0, 0, 0), Color3.new(1, 1, 1)))
+local function selectedPickerColor()
+    return Color3.fromHSV(pickerHue, pickerSaturation, pickerValue)
+end
+local function updatePickerPreview()
+    local color = selectedPickerColor()
+    local gradientHue = Color3.fromHSV(pickerHue, 1, pickerValue)
+    hueTrack.Thumb.Position = UDim2.new(pickerHue, 0, 0.5, 0)
+    saturationTrack.Thumb.Position = UDim2.new(pickerSaturation, 0, 0.5, 0)
+    valueTrack.Thumb.Position = UDim2.new(pickerValue, 0, 0.5, 0)
+    saturationTrack.Gradient.Color = ColorSequence.new(Color3.fromHSV(pickerHue, 0, pickerValue), gradientHue)
+    valueTrack.Gradient.Color = ColorSequence.new(Color3.new(0, 0, 0), Color3.fromHSV(pickerHue, pickerSaturation, 1))
+    PickerColorPreview.BackgroundColor3 = color
+    PickerRgbLabel.Text = rgbTextFromColor(color)
+    if activePickerButton then activePickerButton.BackgroundColor3 = color end
+    if activePickerKey == "ThemeGradientStartRGB" then
+        AI.ThemeGradientStartRGB = rgbTextFromColor(color)
+    elseif activePickerKey == "ThemeGradientEndRGB" then
+        AI.ThemeGradientEndRGB = rgbTextFromColor(color)
+    end
+end
+local function closeGradientColorPicker(apply)
+    if not GradientColorPicker.Visible then return end
+    activePickerTrack = nil
+    GradientColorPicker.Visible = false
+    GradientColorPickerBackdrop.Visible = false
+    if apply then applySavedAppearance() end
+    activePickerKey, activePickerButton = nil, nil
+end
+local function openGradientColorPicker(key, button)
+    closeGradientColorPicker(false)
+    activePickerKey, activePickerButton = key, button
+    PickerTitle.Text = key == "ThemeGradientStartRGB" and "Gradient start color" or "Gradient end color"
+    local color = colorFromRgbText(AI[key])
+    pickerHue, pickerSaturation, pickerValue = color:ToHSV()
+    updatePickerPreview()
+    local buttonPosition, buttonSize = button.AbsolutePosition, button.AbsoluteSize
+    local framePosition, frameSize = UIRefs.MainFrame.AbsolutePosition, UIRefs.MainFrame.AbsoluteSize
+    local x = math.clamp(buttonPosition.X - framePosition.X + buttonSize.X - 280, 6, math.max(6, frameSize.X - 286))
+    local y = buttonPosition.Y - framePosition.Y + buttonSize.Y + 6
+    if y + 198 > frameSize.Y then y = math.max(6, buttonPosition.Y - framePosition.Y - 198) end
+    GradientColorPicker.Position = UDim2.fromOffset(x, y)
+    GradientColorPicker.Visible = true
+    GradientColorPickerBackdrop.Visible = true
+end
+themeGradientStartButton.MouseButton1Click:Connect(function() openGradientColorPicker("ThemeGradientStartRGB", themeGradientStartButton) end)
+themeGradientEndButton.MouseButton1Click:Connect(function() openGradientColorPicker("ThemeGradientEndRGB", themeGradientEndButton) end)
+GradientColorPickerBackdrop.MouseButton1Click:Connect(function() closeGradientColorPicker(true) end)
+PickerCloseButton.MouseButton1Click:Connect(function() closeGradientColorPicker(true) end)
+local function setPickerTrack(track, input)
+    local alpha = math.clamp((input.Position.X - track.Track.AbsolutePosition.X) / math.max(1, track.Track.AbsoluteSize.X), 0, 1)
+    if track == hueTrack then pickerHue = alpha
+    elseif track == saturationTrack then pickerSaturation = alpha
+    else pickerValue = alpha end
+    updatePickerPreview()
+end
+for _, spec in ipairs({ hueTrack, saturationTrack, valueTrack }) do
+    spec.Track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            activePickerTrack = spec
+            setPickerTrack(spec, input)
         end
-        input.Text = AI[key]
+    end)
+end
+UIRefs.UserInputService.InputChanged:Connect(function(input)
+    if activePickerTrack and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        setPickerTrack(activePickerTrack, input)
+    end
+end)
+UIRefs.UserInputService.InputEnded:Connect(function(input)
+    if activePickerTrack and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        setPickerTrack(activePickerTrack, input)
+        activePickerTrack = nil
+        applySavedAppearance()
+    end
+end)
+AITabButton.MouseButton1Click:Connect(function() closeGradientColorPicker(true) end)
+ThemeTabButton.MouseButton1Click:Connect(function() closeGradientColorPicker(true) end)
+SettingsView:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not SettingsView.Visible then closeGradientColorPicker(true) end
+end)
+themeAdvancedButton.MouseButton1Click:Connect(function()
+    if not AI.ThemeAdvanced then closeGradientColorPicker(true) end
+end)
+
+local function bindPercentInput(input, key)
+    input.FocusLost:Connect(function()
+        local value = tonumber(input.Text)
+        if not value then value = AI[key] * 100 end
+        AI[key] = math.clamp(value, 0, 100) / 100
+        input.Text = tostring(math.floor(AI[key] * 100 + 0.5))
         applySavedAppearance()
     end)
 end
-bindRgbInput(themeGradientStartInput, "ThemeGradientStartRGB")
-bindRgbInput(themeGradientEndInput, "ThemeGradientEndRGB")
+bindPercentInput(themeTransparencyInput, "ThemeTransparency")
+bindPercentInput(themeGlossInput, "ThemeGloss")
+bindPercentInput(themeGradientStrengthInput, "ThemeGradientStrength")
+themeGradientRotationInput.FocusLost:Connect(function()
+    local value = tonumber(themeGradientRotationInput.Text) or AI.ThemeGradientRotation
+    AI.ThemeGradientRotation = math.clamp(math.floor(value), 0, 360)
+    themeGradientRotationInput.Text = tostring(AI.ThemeGradientRotation)
+    applySavedAppearance()
+end)
 refreshThemeControls = function()
     themeAdvancedControls.Visible = AI.ThemeAdvanced
-    themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 280 or 0)
+    themeAdvancedControls.Size = UDim2.new(1, 0, 0, AI.ThemeAdvanced and 320 or 0)
     themeSimpleButton.Text = AI.ThemeSimple and "ON" or "OFF"
     themeSimpleButton.BackgroundColor3 = AI.ThemeSimple and Theme.Accent or Theme.SegmentedBg
     themeAdvancedButton.Text = AI.ThemeAdvanced and "ON" or "OFF"
     themeAdvancedButton.BackgroundColor3 = AI.ThemeAdvanced and Theme.Accent or Theme.SegmentedBg
+    themeGlassButton.Text = AI.ThemeGlass and "ON" or "OFF"
+    themeGlassButton.BackgroundColor3 = AI.ThemeGlass and Theme.Accent or Theme.SegmentedBg
     themeGradientButton.Text = AI.ThemeGradient and "ON" or "OFF"
     themeGradientButton.BackgroundColor3 = AI.ThemeGradient and Theme.Accent or Theme.SegmentedBg
     themeTransparencyInput.Text = tostring(math.floor(AI.ThemeTransparency * 100 + 0.5))
     themeGlossInput.Text = tostring(math.floor(AI.ThemeGloss * 100 + 0.5))
     themeGradientRotationInput.Text = tostring(AI.ThemeGradientRotation)
     themeGradientStrengthInput.Text = tostring(math.floor(AI.ThemeGradientStrength * 100 + 0.5))
-    themeGradientStartInput.Text = AI.ThemeGradientStartRGB
-    themeGradientEndInput.Text = AI.ThemeGradientEndRGB
+    themeGradientStartButton.BackgroundColor3 = colorFromRgbText(AI.ThemeGradientStartRGB)
+    themeGradientEndButton.BackgroundColor3 = colorFromRgbText(AI.ThemeGradientEndRGB)
 end
 refreshThemeControls()
 applySavedAppearance()
