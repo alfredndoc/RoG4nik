@@ -1571,3 +1571,88 @@ UIRefs.ScriptUI.refreshCards()
 debugTrace("INFO", "UI boot complete · theme=" .. ThemeEngine.CurrentThemeName ..
     " · provider=" .. AI.Provider .. " · model=" .. AI.Model ..
     " · autoExec=" .. tostring(AI.AutoExecute))
+--============================================================
+--// STARTUP REVEAL
+-- Keep this inline to avoid adding more module/bootstrap overhead. The UI is
+-- already fully initialized underneath; this is a short visual reveal only.
+--============================================================
+UIRefs.IntroScale = create("UIScale", { Scale = 0.955 }, UIRefs.MainFrame)
+UIRefs.IntroOverlay = create("Frame", {
+    Name = "StartupReveal", Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Theme.Background, BackgroundTransparency = 0,
+    BorderSizePixel = 0, Active = true, Selectable = false, ZIndex = 240,
+}, UIRefs.MainFrame)
+corner(UIRefs.IntroOverlay, 16)
+create("UIGradient", {
+    Rotation = 28,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Theme.Background),
+        ColorSequenceKeypoint.new(0.52, Theme.Panel),
+        ColorSequenceKeypoint.new(1, Theme.Background),
+    }),
+}, UIRefs.IntroOverlay)
+
+UIRefs.IntroBrand = create("Frame", {
+    Name = "StartupBrandMark", AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, -44), Size = UDim2.fromOffset(58, 58),
+    BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 242,
+}, UIRefs.IntroOverlay)
+corner(UIRefs.IntroBrand, 18)
+UIRefs.IntroBrandStroke = stroke(UIRefs.IntroBrand, Theme.Accent, 1, 0.45)
+Theme.createHubGlyph(UIRefs.IntroBrand, 26, 244, Theme.Accent, true)
+
+UIRefs.IntroTitle = create("TextLabel", {
+    Name = "StartupTitle", AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 8), Size = UDim2.fromOffset(300, 24),
+    BackgroundTransparency = 1, Text = "DR4GONIK HUB", TextColor3 = Theme.PrimaryText,
+    Font = Theme.FontBold, TextSize = 16, TextTransparency = 0,
+    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 242,
+}, UIRefs.IntroOverlay)
+UIRefs.IntroSubtitle = create("TextLabel", {
+    Name = "StartupSubtitle", AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 31), Size = UDim2.fromOffset(320, 20),
+    BackgroundTransparency = 1, Text = "Your workspace is ready", TextColor3 = Theme.MutedText,
+    Font = Theme.Font, TextSize = 12, TextTransparency = 0,
+    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 242,
+}, UIRefs.IntroOverlay)
+UIRefs.IntroAccent = create("Frame", {
+    Name = "StartupAccent", AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.new(0.5, 0, 0.5, 54), Size = UDim2.new(0, 0, 0, 2),
+    BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 242,
+}, UIRefs.IntroOverlay)
+corner(UIRefs.IntroAccent, 2)
+
+UIRefs.IntroFadeTween = tween(UIRefs.IntroOverlay,
+    { BackgroundTransparency = 1 }, 0.78, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+tween(UIRefs.IntroScale, { Scale = 1 }, 0.82, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+tween(UIRefs.IntroAccent, { Size = UDim2.new(0, 104, 0, 2) }, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+if type(task) == "table" and type(task.delay) == "function" then
+    task.delay(0.3, function()
+        if UIRefs.IntroTitle and UIRefs.IntroTitle.Parent then
+            tween(UIRefs.IntroTitle, { TextTransparency = 1 }, 0.34, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+        end
+        if UIRefs.IntroSubtitle and UIRefs.IntroSubtitle.Parent then
+            tween(UIRefs.IntroSubtitle, { TextTransparency = 1 }, 0.28, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+        end
+        if UIRefs.IntroBrand and UIRefs.IntroBrand.Parent then
+            tween(UIRefs.IntroBrand, { BackgroundTransparency = 1 }, 0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+        end
+        if UIRefs.IntroBrandStroke and UIRefs.IntroBrandStroke.Parent then
+            tween(UIRefs.IntroBrandStroke, { Transparency = 1 }, 0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+        end
+    end)
+end
+if UIRefs.IntroFadeTween then
+    UIRefs.IntroFadeTween.Completed:Connect(function()
+        if UIRefs.IntroOverlay and UIRefs.IntroOverlay.Parent then UIRefs.IntroOverlay:Destroy() end
+        UIRefs.IntroOverlay = nil
+        UIRefs.IntroFadeTween = nil
+        UIRefs.IntroTitle = nil
+        UIRefs.IntroSubtitle = nil
+        UIRefs.IntroBrand = nil
+        UIRefs.IntroBrandStroke = nil
+        UIRefs.IntroAccent = nil
+    end)
+end
+
+
