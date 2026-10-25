@@ -228,6 +228,98 @@ local function buildSandboxEnv(captured)
         end
         return out
     end
+    -- DuckDuckGo's Instant Answer endpoint returns summaries and related-topic
+    -- data, not a general web-results page. Keep requests read-only and bound the
+    -- amount of remote text returned to the model.
+    env.duckduckgoInstantAnswer = function(query)
+        query = tostring(query or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if query == "" then return { ok = false, error = "A search query is required." } end
+        query = query:sub(1, 300)
+        if type(AI.HttpRequest) ~= "function" then
+            return { ok = false, error = "HTTP requests are unavailable in this runtime." }
+        end
+
+        local encodeOk, encodedQuery = pcall(function()
+            return UIRefs.HttpService:UrlEncode(query)
+        end)
+        if not encodeOk or type(encodedQuery) ~= "string" then
+            encodedQuery = query:gsub("([^%w%-_%.~])", function(char)
+                return string.format("%%%02X", string.byte(char))
+            end)
+        end
+
+        local url = "https://api.duckduckgo.com/?q=" .. encodedQuery
+            .. "&format=json&no_html=1&no_redirect=1&t=dr4gonik_hub"
+        local body, status = AI.HttpRequest({
+            Url = url, Method = "GET", Headers = { ["Accept"] = "application/json" }, Timeout = 15,
+        })
+        local numericStatus = tonumber(status)
+        if type(body) ~= "string" then
+            return { ok = false, error = tostring(status or "DuckDuckGo request failed.") }
+        end
+        if numericStatus and (numericStatus < 200 or numericStatus >= 300) then
+            return { ok = false, error = "DuckDuckGo returned HTTP " .. tostring(numericStatus) }
+        end
+        local decodeOk, data = pcall(function() return UIRefs.HttpService:JSONDecode(body) end)
+        if not decodeOk or type(data) ~= "table" then
+            return { ok = false, error = "DuckDuckGo returned invalid JSON." }
+        end
+
+        local result = {
+            ok = true,
+            query = query,
+            heading = tostring(data.Heading or ""):sub(1, 200),
+            answer = tostring(data.Answer or ""):sub(1, 700),
+            answerType = tostring(data.AnswerType or ""),
+            abstract = tostring(data.AbstractText or ""):sub(1, 1200),
+            abstractSource = tostring(data.AbstractSource or ""):sub(1, 120),
+            abstractURL = tostring(data.AbstractURL or ""):sub(1, 400),
+            definition = tostring(data.Definition or ""):sub(1, 700),
+            definitionSource = tostring(data.DefinitionSource or ""):sub(1, 120),
+            definitionURL = tostring(data.DefinitionURL or ""):sub(1, 400),
+            attribution = "Results from DuckDuckGo",
+            searchURL = "https://duckduckgo.com/?q=" .. encodedQuery,
+            relatedTopics = {},
+            results = {},
+        }
+        local function addTopic(item)
+            if #result.relatedTopics >= 8 or type(item) ~= "table" then return end
+            if type(item.Topics) == "table" then
+                for _, nested in ipairs(item.Topics) do addTopic(nested) end
+                return
+            end
+            local text = tostring(item.Text or "")
+            local link = tostring(item.FirstURL or "")
+            if text ~= "" then
+                result.relatedTopics[#result.relatedTopics + 1] = {
+                    text = text:sub(1, 300), url = link:sub(1, 400),
+                }
+            end
+        end
+        if type(data.RelatedTopics) == "table" then
+            for _, item in ipairs(data.RelatedTopics) do addTopic(item) end
+        end
+        if type(data.Results) == "table" then
+            for _, item in ipairs(data.Results) do
+                if #result.results >= 5 then break end
+                if type(item) == "table" then
+                    local text = tostring(item.Text or "")
+                    local link = tostring(item.FirstURL or "")
+                    if text ~= "" then
+                        result.results[#result.results + 1] = {
+                            text = text:sub(1, 300), url = link:sub(1, 400),
+                        }
+                    end
+                end
+            end
+        end
+        if result.answer == "" and result.abstract == "" and result.definition == ""
+            and #result.relatedTopics == 0 and #result.results == 0 then
+            result.noInstantAnswer = true
+            result.note = "No instant answer was available. This endpoint is not full web search; try a topic/entity query or open the DuckDuckGo search URL."
+        end
+        return result
+    end
     env.remember = function(key, value)
         key = tostring(key or ""):sub(1, 100)
         if key == "" then return nil, "A note key is required." end
@@ -396,3 +488,4 @@ function WorkspaceInspector.Summary()
     return table.concat(out, "\n")
 end
 _G.WorkspaceInspector = WorkspaceInspector
+
