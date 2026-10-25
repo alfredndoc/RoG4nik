@@ -1608,13 +1608,6 @@ UIRefs.IntroTitle = create("TextLabel", {
     Font = Theme.FontBold, TextSize = 16, TextTransparency = 0,
     TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 242,
 }, UIRefs.IntroOverlay)
-UIRefs.IntroSubtitle = create("TextLabel", {
-    Name = "StartupSubtitle", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, 31), Size = UDim2.fromOffset(320, 20),
-    BackgroundTransparency = 1, Text = "Your workspace is ready", TextColor3 = Theme.MutedText,
-    Font = Theme.Font, TextSize = 12, TextTransparency = 0,
-    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 242,
-}, UIRefs.IntroOverlay)
 UIRefs.IntroAccent = create("Frame", {
     Name = "StartupAccent", AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 54), Size = UDim2.new(0, 0, 0, 2),
@@ -1622,25 +1615,17 @@ UIRefs.IntroAccent = create("Frame", {
 }, UIRefs.IntroOverlay)
 corner(UIRefs.IntroAccent, 2)
 
-UIRefs.IntroFadeTween = tween(UIRefs.IntroOverlay,
-    { BackgroundTransparency = 1 }, 0.78, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-tween(UIRefs.IntroScale, { Scale = 1 }, 0.82, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+UIRefs.IntroFadeTween = tween(UIRefs.IntroOverlay, { BackgroundTransparency = 1 }, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+tween(UIRefs.IntroScale, { Scale = 1 }, 1.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 tween(UIRefs.IntroAccent, { Size = UDim2.new(0, 104, 0, 2) }, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-if type(task) == "table" and type(task.delay) == "function" then
-    task.delay(0.3, function()
-        if UIRefs.IntroTitle and UIRefs.IntroTitle.Parent then
-            tween(UIRefs.IntroTitle, { TextTransparency = 1 }, 0.34, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-        end
-        if UIRefs.IntroSubtitle and UIRefs.IntroSubtitle.Parent then
-            tween(UIRefs.IntroSubtitle, { TextTransparency = 1 }, 0.28, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-        end
-        if UIRefs.IntroBrand and UIRefs.IntroBrand.Parent then
-            tween(UIRefs.IntroBrand, { BackgroundTransparency = 1 }, 0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-        end
-        if UIRefs.IntroBrandStroke and UIRefs.IntroBrandStroke.Parent then
-            tween(UIRefs.IntroBrandStroke, { Transparency = 1 }, 0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-        end
-    end)
+if UIRefs.IntroTitle and UIRefs.IntroTitle.Parent then
+    tween(UIRefs.IntroTitle, { TextTransparency = 1 }, 1.05, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+end
+if UIRefs.IntroBrand and UIRefs.IntroBrand.Parent then
+    tween(UIRefs.IntroBrand, { BackgroundTransparency = 1 }, 1.05, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+end
+if UIRefs.IntroBrandStroke and UIRefs.IntroBrandStroke.Parent then
+    tween(UIRefs.IntroBrandStroke, { Transparency = 1 }, 1.05, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
 end
 if UIRefs.IntroFadeTween then
     UIRefs.IntroFadeTween.Completed:Connect(function()
@@ -1648,7 +1633,6 @@ if UIRefs.IntroFadeTween then
         UIRefs.IntroOverlay = nil
         UIRefs.IntroFadeTween = nil
         UIRefs.IntroTitle = nil
-        UIRefs.IntroSubtitle = nil
         UIRefs.IntroBrand = nil
         UIRefs.IntroBrandStroke = nil
         UIRefs.IntroAccent = nil
