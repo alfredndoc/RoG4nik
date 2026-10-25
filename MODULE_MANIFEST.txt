@@ -10,6 +10,8 @@
 - **Markdown.lua** — Markdown and code rendering.
 - **Messages.lua** — message/conversation UI.
 - **AIRequest.lua** — AI HTTP request and tool loop.
+- **Sandbox.lua** exposes `duckduckgoInstantAnswer(query)` as a bounded, read-only DuckDuckGo Instant Answer lookup; it is not general web search.
+- **SystemPrompt.lua** documents the helper, empty-result limitations, attribution, and untrusted-result handling.
 
 ### Key behavior and features
 
