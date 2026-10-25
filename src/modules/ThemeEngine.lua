@@ -102,8 +102,8 @@ local function create(className, props, parent)
     end
     local roles = {}
     for propName in pairs(ThemeColorProperties) do
-        local ok, value = pcall(function() return inst[propName] end)
-        if ok and typeof(value) == "Color3" and themeKeyForColor then
+        local value = props and props[propName]
+        if typeof(value) == "Color3" and themeKeyForColor then
             local role = themeKeyForColor(value, propName, Theme)
             if role then roles[propName] = role end
         end
@@ -300,45 +300,49 @@ local function updateGlassEdge(obj, appearance)
 end
 
 applyAppearanceToObject = function(obj)
-    local appearance = resolvedAppearance()
-    local roles = ThemeRoleRegistry[obj]
-    if roles and roles.BackgroundColor3 and ThemeSurfaceRoles[roles.BackgroundColor3] and obj:IsA("GuiObject") then
-        local baseTransparency = ThemeBaseTransparency[obj] or 0
-        if baseTransparency < 0.75 then
-            obj.BackgroundTransparency = baseTransparency + ((1 - baseTransparency) * appearance.Transparency)
-            updateGlassEdge(obj, appearance)
-            if obj:IsA("Frame") then
-                local gradient = obj:FindFirstChild("ThemeSurfaceGradient")
-                if appearance.Gradient then
-                    if not gradient and obj:FindFirstChildOfClass("UIGradient") then
-                        return
-                    end
-                    if not gradient then
-                        gradient = Instance.new("UIGradient")
-                        gradient.Name = "ThemeSurfaceGradient"
-                        gradient.Parent = obj
-                    end
-                    gradient.Rotation = appearance.GradientRotation
-                    gradient.Color = ColorSequence.new(appearance.GradientStart, appearance.GradientEnd)
-                    local strength = appearance.GradientStrength
-                    gradient.Transparency = NumberSequence.new(1 - strength, 1 - (strength * 0.4))
-                elseif gradient then
-                    gradient:Destroy()
-                end
-            end
-        end
-    elseif obj:IsA("UIStroke") then
+    if not obj then return end
+    if obj:IsA("UIStroke") then
         local base = ThemeStrokeBase[obj]
         local parentRoles = obj.Parent and ThemeRoleRegistry[obj.Parent]
-        if base and parentRoles and parentRoles.BackgroundColor3 and ThemeSurfaceRoles[parentRoles.BackgroundColor3] then
-            obj.Transparency = math.clamp(base.Transparency - (appearance.Gloss * 0.3), 0, 1)
-            obj.Thickness = base.Thickness + (appearance.Gloss * 0.5)
+        if not base or not parentRoles or not parentRoles.BackgroundColor3
+            or not ThemeSurfaceRoles[parentRoles.BackgroundColor3] then return end
+        local appearance = resolvedAppearance()
+        obj.Transparency = math.clamp(base.Transparency - (appearance.Gloss * 0.3), 0, 1)
+        obj.Thickness = base.Thickness + (appearance.Gloss * 0.5)
+        return
+    end
+
+    if not obj:IsA("GuiObject") then return end
+    local roles = ThemeRoleRegistry[obj]
+    if not roles or not roles.BackgroundColor3 or not ThemeSurfaceRoles[roles.BackgroundColor3] then return end
+    local baseTransparency = ThemeBaseTransparency[obj]
+    if baseTransparency == nil or baseTransparency >= 0.75 then return end
+
+    local appearance = resolvedAppearance()
+    obj.BackgroundTransparency = baseTransparency + ((1 - baseTransparency) * appearance.Transparency)
+    updateGlassEdge(obj, appearance)
+    if obj:IsA("Frame") then
+        local gradient = obj:FindFirstChild("ThemeSurfaceGradient")
+        if appearance.Gradient then
+            if not gradient and obj:FindFirstChildOfClass("UIGradient") then return end
+            if not gradient then
+                gradient = Instance.new("UIGradient")
+                gradient.Name = "ThemeSurfaceGradient"
+                gradient.Parent = obj
+            end
+            gradient.Rotation = appearance.GradientRotation
+            gradient.Color = ColorSequence.new(appearance.GradientStart, appearance.GradientEnd)
+            local strength = appearance.GradientStrength
+            gradient.Transparency = NumberSequence.new(1 - strength, 1 - (strength * 0.4))
+        elseif gradient then
+            gradient:Destroy()
         end
     end
 end
 
 function ThemeEngine.setAppearanceSettings(settings)
     settings = settings or {}
+    local wasAppearanceEnabled = ThemeAppearance.Simple or ThemeAppearance.Advanced
     ThemeAppearance.Simple = settings.Simple == true
     ThemeAppearance.Advanced = settings.Advanced == true and not ThemeAppearance.Simple
     ThemeAppearance.Glass = settings.Glass == true
@@ -349,6 +353,7 @@ function ThemeEngine.setAppearanceSettings(settings)
     ThemeAppearance.GradientStrength = math.clamp(tonumber(settings.GradientStrength) or 0.18, 0, 1)
     ThemeAppearance.GradientStartRGB = tostring(settings.GradientStartRGB or "255, 255, 255")
     ThemeAppearance.GradientEndRGB = tostring(settings.GradientEndRGB or "224, 228, 240")
+    if not wasAppearanceEnabled and not ThemeAppearance.Simple and not ThemeAppearance.Advanced then return end
     for obj in pairs(ThemeRoleRegistry) do
         if obj and obj.Parent then applyAppearanceToObject(obj) end
     end
