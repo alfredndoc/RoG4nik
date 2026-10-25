@@ -60,6 +60,87 @@ local function createReasoningBlock(parent, reasoningText, startCollapsed, order
     return container
 end
 
+UIRefs.LuaKeywords = {
+        ["and"] = "#C792EA", ["break"] = "#FF6B6B", ["do"] = "#C792EA", ["else"] = "#C792EA",
+        ["elseif"] = "#C792EA", ["end"] = "#C792EA", ["false"] = "#F78C6C", ["for"] = "#C792EA",
+        ["function"] = "#C792EA", ["if"] = "#C792EA", ["in"] = "#C792EA", ["local"] = "#FF6B6B",
+        ["nil"] = "#F78C6C", ["not"] = "#C792EA", ["or"] = "#C792EA", ["repeat"] = "#C792EA",
+        ["return"] = "#C792EA", ["then"] = "#C792EA", ["true"] = "#F78C6C", ["until"] = "#C792EA",
+        ["while"] = "#C792EA", ["continue"] = "#C792EA",
+}
+UIRefs.LuaBuiltins = {
+        assert = true, error = true, getmetatable = true, ipairs = true, next = true,
+        pairs = true, pcall = true, print = true, rawequal = true, rawget = true,
+        rawlen = true, rawset = true, select = true, setmetatable = true, tonumber = true,
+        tostring = true, type = true, typeof = true, xpcall = true, game = true,
+        Instance = true, Enum = true, Color3 = true, Vector2 = true, Vector3 = true,
+        UDim = true, UDim2 = true, CFrame = true, math = true, string = true,
+        table = true, task = true, workspace = true, script = true,
+}
+
+UIRefs.HighlightLua = function(source)
+    source = tostring(source or "")
+    local output, index = {}, 1
+    local function escape(value)
+        return value:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+    end
+    local function append(value, color)
+        value = escape(value)
+        if color then output[#output + 1] = '<font color="' .. color .. '">' .. value .. "</font>"
+        else output[#output + 1] = value end
+    end
+
+    while index <= #source do
+        local current = source:sub(index, index)
+        if source:sub(index, index + 1) == "--" then
+            local finish = source:find("\n", index, true) or (#source + 1)
+            append(source:sub(index, finish - 1), "#7F8798")
+            index = finish
+        elseif current == "'" or current == '"' then
+            local start, quote = index, current
+            index = index + 1
+            while index <= #source do
+                local char = source:sub(index, index)
+                if char == "\\" then index = index + 2
+                elseif char == quote then index = index + 1; break
+                else index = index + 1 end
+            end
+            append(source:sub(start, math.min(index - 1, #source)), "#A5D6A7")
+        elseif current:match("[%a_]") then
+            local start = index
+            repeat index = index + 1 until index > #source or not source:sub(index, index):match("[%w_]")
+            local token = source:sub(start, index - 1)
+            local color = UIRefs.LuaKeywords[token] or (UIRefs.LuaBuiltins[token] and "#82AAFF")
+            append(token, color)
+        elseif current:match("%d") then
+            local start = index
+            if source:sub(index, index + 1):lower() == "0x" then
+                index = index + 2
+                while index <= #source and source:sub(index, index):match("[%da-fA-F]") do index = index + 1 end
+            else
+                while index <= #source and source:sub(index, index):match("%d") do index = index + 1 end
+                if source:sub(index, index) == "." and source:sub(index + 1, index + 1):match("%d") then
+                    index = index + 1
+                    while index <= #source and source:sub(index, index):match("%d") do index = index + 1 end
+                end
+                if source:sub(index, index):match("[eE]") then
+                    local exponent = index
+                    index = index + 1
+                    if source:sub(index, index):match("[%+%-]") then index = index + 1 end
+                    local digits = index
+                    while index <= #source and source:sub(index, index):match("%d") do index = index + 1 end
+                    if index == digits then index = exponent end
+                end
+            end
+            append(source:sub(start, index - 1), "#F78C6C")
+        else
+            append(current)
+            index = index + 1
+        end
+    end
+    return table.concat(output)
+end
+
 local function renderCodeBlock(parent, code, language, tag, order)
     local codeFrame = create("Frame", {
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -103,12 +184,13 @@ local function renderCodeBlock(parent, code, language, tag, order)
     corner(runBtn, 6)
     runBtn.Visible = not (tag and tostring(tag):upper():match("^FINAL"))
     bindSoftButton(runBtn, { BackgroundColor3 = Theme.Accent, TextColor3 = Theme.White }, 1.06)
-    local codeBox = create("TextBox", {
-        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1, LayoutOrder = 2,
-        Text = code, TextColor3 = Theme.PrimaryText, Font = Theme.FontCode, TextSize = 13,
+    local codeBox = create("TextLabel", {
+        Name = "HighlightedCode", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, LayoutOrder = 2, RichText = true,
+        Text = UIRefs.HighlightLua(code), TextColor3 = Theme.PrimaryText,
+        Font = Theme.FontCode, TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-        MultiLine = true, TextWrapped = true, ClearTextOnFocus = false, ZIndex = 5,
+        TextWrapped = true, ZIndex = 5,
     }, codeFrame)
     padding(codeBox, 10, 10, 8, 8)
     local outputLabel = create("TextLabel", {
@@ -143,6 +225,132 @@ local function renderCodeBlock(parent, code, language, tag, order)
         end
     end)
     return codeFrame
+end
+
+-- The editor remains a real TextBox for input and selection. A rich-text layer
+-- beneath it colors tokens, while the gutter numbers the original source lines.
+if UIRefs.CodeScroll and UIRefs.CodeTextBox then
+    UIRefs.CodeScroll.ScrollingDirection = Enum.ScrollingDirection.XY
+    UIRefs.CodeGutter = create("TextLabel", {
+        Name = "LineNumbers", Position = UDim2.new(0, 0, 0, 4),
+        Size = UDim2.new(0, 34, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, Text = "1", TextColor3 = Theme.QuietText,
+        Font = Theme.FontCode, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right,
+        TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = false, ZIndex = 6,
+    }, UIRefs.CodeScroll)
+    UIRefs.CodeHighlight = create("TextLabel", {
+        Name = "SyntaxHighlight", Position = UDim2.new(0, 44, 0, 0),
+        Size = UDim2.new(0, 320, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, Text = "", RichText = true,
+        TextColor3 = Theme.PrimaryText, Font = Theme.FontCode, TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = false, ZIndex = 6,
+    }, UIRefs.CodeScroll)
+    padding(UIRefs.CodeHighlight, 4, 4, 4, 4)
+    UIRefs.CodeTextBox.Position = UDim2.new(0, 44, 0, 0)
+    UIRefs.CodeTextBox.Size = UDim2.new(0, 320, 0, 0)
+    UIRefs.CodeTextBox.AutomaticSize = Enum.AutomaticSize.Y
+    UIRefs.CodeTextBox.TextWrapped = false
+    UIRefs.CodeTextBox.TextTransparency = 1
+    UIRefs.CodeTextBox.SelectionColor3 = Theme.Accent
+    UIRefs.CodeTextBox.ZIndex = 7
+
+    UIRefs.UpdateCodeEditor = function()
+        if not UIRefs.CodeTextBox or not UIRefs.CodeTextBox.Parent then return end
+        local source = UIRefs.CodeTextBox.Text or ""
+        local lineCount = 1
+        for _ in source:gmatch("\n") do lineCount = lineCount + 1 end
+        local numbers = {}
+        for line = 1, lineCount do numbers[line] = tostring(line) end
+        UIRefs.CodeGutter.Text = table.concat(numbers, "\n")
+        UIRefs.CodeHighlight.Text = UIRefs.HighlightLua(source)
+        local width = math.max(240, UIRefs.CodeScroll.AbsoluteSize.X - 54, UIRefs.CodeTextBox.TextBounds.X + 12)
+        UIRefs.CodeHighlight.Size = UDim2.new(0, width, 0, 0)
+        UIRefs.CodeTextBox.Size = UDim2.new(0, width, 0, 0)
+        UIRefs.CodeScroll.CanvasSize = UDim2.new(0, width + 54,
+            0, math.max(UIRefs.CodeScroll.AbsoluteSize.Y, UIRefs.CodeTextBox.TextBounds.Y + 16))
+    end
+
+    UIRefs.CodeEditorPreviousText = UIRefs.CodeTextBox.Text
+    UIRefs.CodeEditorGuard = false
+    UIRefs.CodeTextBox:GetPropertyChangedSignal("Text"):Connect(function()
+        if UIRefs.CodeEditorGuard then return end
+        local box = UIRefs.CodeTextBox
+        local text = box.Text or ""
+        local previous = UIRefs.CodeEditorPreviousText or ""
+        local cursor = box.CursorPosition
+        local inserted = nil
+        if cursor >= 2 and #text == #previous + 1 then
+            local candidate = text:sub(cursor - 1, cursor - 1)
+            if text:sub(1, cursor - 2) .. text:sub(cursor) == previous then inserted = candidate end
+        end
+        if inserted then
+            local indent = ""
+            if inserted == "\n" then
+                local previousLine = text:sub(1, cursor - 2):match("([^\n]*)$") or ""
+                indent = previousLine:match("^[ \t]*") or ""
+                if previousLine:match("then%s*$") or previousLine:match("do%s*$")
+                    or previousLine:match("function%s*[%w_%.:]*%s*%b()%s*$") or previousLine:match("{%s*$") then
+                    indent = indent .. "    "
+                end
+            elseif inserted == "(" or inserted == "[" or inserted == "{" then
+                local closing = inserted == "(" and ")" or (inserted == "[" and "]" or "}")
+                UIRefs.CodeEditorGuard = true
+                box.Text = text:sub(1, cursor - 1) .. closing .. text:sub(cursor)
+                box.CursorPosition = cursor
+                UIRefs.CodeEditorGuard = false
+                text = box.Text
+            end
+            if inserted == "\n" and indent ~= "" then
+                UIRefs.CodeEditorGuard = true
+                box.Text = text:sub(1, cursor - 1) .. indent .. text:sub(cursor)
+                box.CursorPosition = cursor + #indent
+                UIRefs.CodeEditorGuard = false
+                text = box.Text
+            end
+        end
+        UIRefs.CodeEditorPreviousText = text
+        task.defer(UIRefs.UpdateCodeEditor)
+    end)
+
+    UIRefs.CodeTextBox.InputBegan:Connect(function(input)
+        if input.KeyCode ~= Enum.KeyCode.Tab then return end
+        task.defer(function()
+            local box = UIRefs.CodeTextBox
+            if not box or not box.Parent then return end
+            box:CaptureFocus()
+            local text, cursor = box.Text or "", box.CursorPosition
+            if cursor < 1 then return end
+            local before = text:sub(1, cursor - 1)
+            local prefix = before:match("([%a_][%w_]*)$")
+            local completion = nil
+            if prefix then
+                local earlier = before:sub(1, #before - #prefix)
+                for token in earlier:gmatch("[%a_][%w_]*") do
+                    if #token > #prefix and token:sub(1, #prefix) == prefix then
+                        completion = token
+                        break
+                    end
+                end
+            end
+            UIRefs.CodeEditorGuard = true
+            if completion then
+                box.Text = text:sub(1, cursor - #prefix - 1) .. completion .. text:sub(cursor)
+                box.CursorPosition = cursor + #completion - #prefix
+                if UIRefs.CodeStatusLabel then
+                    UIRefs.CodeStatusLabel.Text = "Completed from earlier code · " .. completion
+                    UIRefs.CodeStatusLabel.TextColor3 = Theme.MutedText
+                end
+            else
+                box.Text = text:sub(1, cursor - 1) .. "    " .. text:sub(cursor)
+                box.CursorPosition = cursor + 4
+            end
+            UIRefs.CodeEditorPreviousText = box.Text
+            UIRefs.CodeEditorGuard = false
+            task.defer(UIRefs.UpdateCodeEditor)
+        end)
+    end)
+    task.defer(UIRefs.UpdateCodeEditor)
 end
 
 local RichFormatter = {}
@@ -362,4 +570,5 @@ local function renderMarkdown(text, parent, order)
     end
     return currentOrder
 end
+
 
