@@ -1581,99 +1581,20 @@ debugTrace("INFO", "UI boot complete · theme=" .. ThemeEngine.CurrentThemeName 
     " · autoExec=" .. tostring(AI.AutoExecute))
 --============================================================
 --// STARTUP REVEAL
--- Keep this inline to avoid adding more module/bootstrap overhead. The UI is
--- already fully initialized underneath; this is a short visual reveal only.
+-- A simple, theme-colored overlay fades away after the interface is ready.
 --============================================================
-UIRefs.IntroScale = create("UIScale", { Scale = 0.955 }, UIRefs.MainFrame)
 UIRefs.IntroOverlay = create("Frame", {
     Name = "StartupReveal", Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Theme.Background, BackgroundTransparency = 0,
     BorderSizePixel = 0, Active = true, Selectable = false, ZIndex = 240,
 }, UIRefs.MainFrame)
 corner(UIRefs.IntroOverlay, 16)
-create("UIGradient", {
-    Rotation = 28,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Theme.Background),
-        ColorSequenceKeypoint.new(0.52, Theme.Panel),
-        ColorSequenceKeypoint.new(1, Theme.Background),
-    }),
-}, UIRefs.IntroOverlay)
-
-UIRefs.IntroBrand = create("Frame", {
-    Name = "StartupBrandMark", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, -44), Size = UDim2.fromOffset(58, 58),
-    BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 242,
-}, UIRefs.IntroOverlay)
-corner(UIRefs.IntroBrand, 18)
-UIRefs.IntroBrandStroke = stroke(UIRefs.IntroBrand, Theme.Accent, 1, 0.45)
-UIRefs.IntroGlyph = Theme.createHubGlyph(UIRefs.IntroBrand, 26, 244, Theme.Accent, true)
-UIRefs.IntroGlyphDiamond = UIRefs.IntroGlyph and UIRefs.IntroGlyph:FindFirstChild("GlyphDiamond")
-UIRefs.IntroGlyphSlash = UIRefs.IntroGlyph and UIRefs.IntroGlyph:FindFirstChild("GlyphSlash")
-UIRefs.IntroGlyphStroke = UIRefs.IntroGlyphDiamond and UIRefs.IntroGlyphDiamond:FindFirstChildOfClass("UIStroke")
-UIRefs.IntroBrand.Rotation = -18
-UIRefs.IntroBrandScale = create("UIScale", { Scale = 0.46 }, UIRefs.IntroBrand)
-
-UIRefs.IntroTitle = create("TextLabel", {
-    Name = "StartupTitle", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, 8), Size = UDim2.fromOffset(300, 24),
-    BackgroundTransparency = 1, Text = "DR4GONIK HUB", TextColor3 = Theme.PrimaryText,
-    Font = Theme.FontBold, TextSize = 16, TextTransparency = 0,
-    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 242,
-}, UIRefs.IntroOverlay)
-UIRefs.IntroAccent = create("Frame", {
-    Name = "StartupAccent", AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, 54), Size = UDim2.new(0, 0, 0, 2),
-    BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 242,
-}, UIRefs.IntroOverlay)
-corner(UIRefs.IntroAccent, 2)
-
-tween(UIRefs.IntroBrand, { Rotation = 7 }, 0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-UIRefs.IntroPopTween = tween(UIRefs.IntroBrandScale, { Scale = 1.34 }, 0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-if UIRefs.IntroPopTween then
-    UIRefs.IntroPopTween.Completed:Connect(function(playbackState)
-        if playbackState == Enum.PlaybackState.Completed and UIRefs.IntroBrandScale and UIRefs.IntroBrandScale.Parent then
-            tween(UIRefs.IntroBrandScale, { Scale = 1 }, 0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-            tween(UIRefs.IntroBrand, { Rotation = 0 }, 0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        end
-    end)
-end
-
-UIRefs.IntroFadeTween = tween(UIRefs.IntroOverlay, { BackgroundTransparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-tween(UIRefs.IntroScale, { Scale = 1 }, 2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-tween(UIRefs.IntroAccent, { Size = UDim2.new(0, 104, 0, 2) }, 0.34, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-if UIRefs.IntroTitle and UIRefs.IntroTitle.Parent then
-    tween(UIRefs.IntroTitle, { TextTransparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
-if UIRefs.IntroBrand and UIRefs.IntroBrand.Parent then
-    tween(UIRefs.IntroBrand, { BackgroundTransparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
-if UIRefs.IntroBrandStroke and UIRefs.IntroBrandStroke.Parent then
-    tween(UIRefs.IntroBrandStroke, { Transparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
-if UIRefs.IntroGlyphSlash and UIRefs.IntroGlyphSlash.Parent then
-    tween(UIRefs.IntroGlyphSlash, { BackgroundTransparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
-if UIRefs.IntroGlyphStroke and UIRefs.IntroGlyphStroke.Parent then
-    tween(UIRefs.IntroGlyphStroke, { Transparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
-if UIRefs.IntroAccent and UIRefs.IntroAccent.Parent then
-    tween(UIRefs.IntroAccent, { BackgroundTransparency = 1 }, 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-end
+UIRefs.IntroFadeTween = tween(UIRefs.IntroOverlay,
+    { BackgroundTransparency = 1 }, 1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 if UIRefs.IntroFadeTween then
     UIRefs.IntroFadeTween.Completed:Connect(function()
         if UIRefs.IntroOverlay and UIRefs.IntroOverlay.Parent then UIRefs.IntroOverlay:Destroy() end
         UIRefs.IntroOverlay = nil
         UIRefs.IntroFadeTween = nil
-        UIRefs.IntroTitle = nil
-        UIRefs.IntroBrand = nil
-        UIRefs.IntroBrandStroke = nil
-        UIRefs.IntroAccent = nil
-        UIRefs.IntroGlyph = nil
-        UIRefs.IntroGlyphDiamond = nil
-        UIRefs.IntroGlyphSlash = nil
-        UIRefs.IntroGlyphStroke = nil
-        UIRefs.IntroBrandScale = nil
     end)
 end
-
