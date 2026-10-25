@@ -1,56 +1,21 @@
-# Dr4gonik Hub — module manifest
 
-Base source SHA-256 before this refactor:
-b86fb1b4649433394fdd099db86ee8adb1d152c1af4fd59a4b57aee28b370797
 
-This package intentionally differs from the original byte-for-byte: theme state and shared helpers were moved into ThemeEngine.lua, free CurrentThemeName references were namespaced, and boot settings now silently apply the saved theme preset.
+### Module responsibilities
 
-## Module ownership
+- **Themes.lua** — preset palettes, theme order, and display names only.
+- **ThemeEngine.lua** — owns `ThemeEngine.CurrentThemeName`, mutable `Theme`, `RuntimeDiagnostics`, `ThemeDebug`, `pathOf`, `debugTrace`, color-role registry/resolution, transitions, appearance styling, `applyThemePreset`, and shared UI helpers.
+- **SystemPrompt.lua** — hidden system prompt and prompt builder.
+- **Sandbox.lua** — sandbox, script library, and workspace inspector.
+- **SettingsView.lua** — settings UI.
+- **Markdown.lua** — Markdown and code rendering.
+- **Messages.lua** — message/conversation UI.
+- **AIRequest.lua** — AI HTTP request and tool loop.
 
-- Themes.lua: preset palettes + theme order/display names only.
-- ThemeEngine.lua: ThemeEngine.CurrentThemeName, mutable Theme table, RuntimeDiagnostics, ThemeDebug, pathOf, debugTrace, color-role registry/resolution, transition logic, appearance styling, applyThemePreset, and shared UI helper functions.
-- SystemPrompt.lua: hidden system prompt and prompt builder.
-- Sandbox.lua: sandbox, script library, and workspace inspector.
-- SettingsView.lua: settings UI.
-- Markdown.lua: Markdown and code rendering.
-- Messages.lua: message/conversation UI.
-- AIRequest.lua: AI HTTP request and tool loop.
+### Key behavior and features
 
-## Static validation
-
-PASS — each of the eight module markers exists exactly once.
-PASS — all module markers resolve when assembled; no unresolved markers remain.
-PASS — ThemeEngine is inserted after Themes and before loadSettings.
-PASS — saveSettings is forward-declared before ThemeEngine and assigned later.
-PASS — loadSettings assigns ThemeEngine.CurrentThemeName and calls applyThemePreset.
-PASS — Themes.lua contains no RuntimeDiagnostics, ThemeDebug, CurrentThemeName, or mutable Theme table.
-PASS — pathOf, debugTrace, create, tween, corner, stroke, padding, bindSoftButton, styleScrollBar, createHubGlyph, and setTheme are defined in ThemeEngine.lua.
-
-Runtime/Roblox compile validation was not available in this environment.
-
-## Conversation summarization fix
-
-- `DisableSummarization` defaults to `false` and is loaded from and saved to `DeepSeekSettings.json`.
-- Settings exposes a “Disable conversation summarization” toggle; restoring defaults turns summarization back on.
-- Disabled summarization returns the original request messages without making an auxiliary AI request.
-- Successful compaction stores a per-conversation summary and history boundary in `DeepSeekConversations.json`, so later prompts continue from the saved summary instead of summarizing the entire history again.
-- Conversation loading restores the summary checkpoint, and the generated `src/Core.lua` contains all updated modules.
-
-Static checks passed for settings persistence, toggle/reset wiring, disabled-path bypass, checkpoint save/load, summary-boundary advancement, module-marker assembly, and `git diff --check`. Roblox runtime execution was not available.
-
-## Theme and drag responsiveness
-
-- Theme updates scan current descendant colors once so dynamically recolored controls are included even when their color changed after construction. Intentional custom colors are excluded from missed-role warnings; warnings are reserved for a registered role absent from a preset.
-- Theme transitions use a slower Sine in/out curve for a softer, more organic change.
-- Large theme changes apply colors once and use the lightweight transition overlay for animation, avoiding a full color-property sweep on every render update. Small changes retain per-property interpolation.
-- The transition overlay starts hidden and is explicitly hidden when a switch finishes, preventing its gradient from leaving a visible remnant.
-- Window dragging preserves the original scale-based position and applies pointer deltas, avoiding a coordinate-space conversion on pointer-down. The window snaps to the final target on release.
-
-## Settings and theme updates
-
-- Settings are separated into AI Settings and Theme Settings tabs, each with its own scrolling area.
-- Simple and Advanced appearance modes are independent and mutually exclusive; both are off by default to keep the selected theme unchanged.
-- Simple mode enables a restrained glass treatment across theme surfaces; Advanced mode exposes independent glass and gradient toggles, transparency, gloss, gradient direction/strength, and hue/saturation/value start/end color pickers. Both modes default off.
-- Theme preferences persist mode state and all appearance controls.
-- Added Red and Cursor Black theme presets.
-- ThemeEngine applies the glass surface treatment to existing and newly created theme surfaces.
+- `saveSettings` is forward-declared before `ThemeEngine` and assigned later; `loadSettings` sets `ThemeEngine.CurrentThemeName` and calls `applyThemePreset`.
+- Settings are split into **AI Settings** and **Theme Settings** tabs, each independently scrollable.
+- Appearance has independent **Simple** and **Advanced** modes, both off by default. Simple applies restrained glass; Advanced exposes glass/gradient toggles, transparency, gloss, gradient direction/strength, and HSV start/end pickers. Theme preferences persist.
+- Added **Red** and **Cursor Black** theme presets.
+- Theme updates include dynamically recolored descendants; warnings only appear for registered roles missing from a preset. Large theme changes use a lightweight transition overlay, small changes use per-property interpolation, and the overlay is explicitly hidden after switching.
+- Window dragging preserves scale-based position, applies pointer deltas, and snaps to the final target on release.
