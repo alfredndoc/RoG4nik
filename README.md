@@ -9,9 +9,11 @@ Instead of relying on external software to write and test scripts, this tool bri
 *   **Rich Chat Interface:** The UI renders AI responses using Markdown. It supports syntax highlighting, and automatically generates code blocks with interactive **"Copy"** and **"Run"** buttons.
 *   **Session & Script Persistence:** It uses the executor's file system to save your API keys, custom themes, chat histories, and written scripts, ensuring you don't lose your work when you leave the game.
 *   **Conversation Summarization:** Older context is summarized at the configured message limit and checkpointed per conversation. Turn on “Disable conversation summarization” in Settings to prevent automatic summary requests.
+*   **DuckDuckGo Instant Answers:** The AI can request keyless JSON topic abstracts, definitions, instant answers, and related links. This endpoint is not general web search and may return no answer for broad or deep queries; returned sources are surfaced for attribution.
 *   **Dynamic Theme Engine:** A highly optimized UI engine that smoothly animates color transitions across every element of the interface (Dark, Light, Blue, and Midnight modes) without lag.
  
 
 ### Requirements:
 *   A Roblox executor with `loadstring`, `game:HttpGet`, and file I/O capabilities (e.g., `writefile`, `readfile`).
 *   An API key from an AI provider (like DeepSeek or OpenAI).
+
