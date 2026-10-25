@@ -52,6 +52,7 @@ local MODULES = {
 -- Keep these small palettes synchronized with src/modules/Themes.lua.
 --============================================================
 local Loader = { Completed = 0, Total = 1 + #MODULES }
+local TweenService = game:GetService("TweenService")
 local LoaderThemes = {
     Dark = { Background = {30,30,36}, Sidebar = {35,35,43}, Panel = {43,43,54}, Border = {67,67,81}, Accent = {78,111,255}, AccentSoft = {43,53,91}, Text = {245,245,250}, Muted = {164,164,179} },
     White = { Background = {248,248,250}, Sidebar = {240,240,244}, Panel = {254,254,255}, Border = {210,210,218}, Accent = {78,111,255}, AccentSoft = {224,232,255}, Text = {25,25,35}, Muted = {90,90,105} },
@@ -152,7 +153,7 @@ loaderCreate("UICorner", { CornerRadius = UDim.new(0, 8) }, Loader.Badge)
 
 Loader.Headline = loaderCreate("TextLabel", {
     Name = "Headline", Position = UDim2.new(0, 24, 0, 78), Size = UDim2.new(1, -48, 0, 24),
-    BackgroundTransparency = 1, Text = "Preparing your workspace", TextColor3 = loaderColor(Loader.Theme.Text),
+    BackgroundTransparency = 1, Text = "Preparing RoG4nik", TextColor3 = loaderColor(Loader.Theme.Text),
     Font = Enum.Font.GothamBold, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2,
 }, Loader.Window)
 Loader.Detail = loaderCreate("TextLabel", {
@@ -187,7 +188,7 @@ Loader.Counter = loaderCreate("TextLabel", {
 }, Loader.Window)
 Loader.ThemeLabel = loaderCreate("TextLabel", {
     Name = "ThemeLabel", Position = UDim2.new(0, 24, 1, -34), Size = UDim2.new(1, -48, 0, 16),
-    BackgroundTransparency = 1, Text = "Appearance · " .. (selectedTheme == "MidnightBlue" and "Midnight" or selectedTheme),
+    BackgroundTransparency = 1, Text = selectedTheme == "MidnightBlue" and "Midnight" or selectedTheme,
     TextColor3 = loaderColor(Loader.Theme.Muted), Font = Enum.Font.Gotham, TextSize = 10,
     TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2,
 }, Loader.Window)
