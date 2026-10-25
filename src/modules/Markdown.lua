@@ -252,7 +252,6 @@ if UIRefs.CodeScroll and UIRefs.CodeTextBox then
     UIRefs.CodeTextBox.AutomaticSize = Enum.AutomaticSize.Y
     UIRefs.CodeTextBox.TextWrapped = false
     UIRefs.CodeTextBox.TextTransparency = 1
-    UIRefs.CodeTextBox.SelectionColor3 = Theme.Accent
     UIRefs.CodeTextBox.ZIndex = 7
 
     UIRefs.SyncCodeEditorMetrics = function()
