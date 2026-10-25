@@ -223,7 +223,9 @@ loaderTween(Loader.Scale, 0.38, { Scale = 1 }, Enum.EasingStyle.Back, Enum.Easin
 loaderTween(Loader.Window, 0.24, { BackgroundTransparency = 0 }, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 local function fetchText(path)
-    setLoaderStatus("Fetching " .. tostring(path):gsub("^modules/", ""), Loader.Completed / Loader.Total)
+    local displayName = tostring(path):gsub("^modules/", ""):gsub("%.lua$", "")
+    setLoaderStatus("Fetching " .. displayName, Loader.Completed / Loader.Total,
+        "Loading " .. displayName)
     local url = RAW_BASE .. "/" .. path
     local ok, result = pcall(game.HttpGet, game, url)
     if not ok or type(result) ~= "string" or result == "" or result:find("404: Not Found") then
@@ -257,7 +259,7 @@ local function fetchText(path)
 end
 
 print("Fetching modules...")
-setLoaderStatus("Fetching core UI", 0, "Loading the selected " .. selectedTheme .. " appearance")
+setLoaderStatus("Fetching Core", 0, "Loading Core")
 local assembled = fetchText(CORE_PATH)
 
 for _, moduleName in ipairs(MODULES) do
@@ -287,13 +289,14 @@ if assembled:find("GITHUB_MODULE:", 1, true) then
 end
 
 print("Executing...")
-setLoaderStatus("Starting Dr4gonik Hub", 1, "All modules are ready")
+setLoaderStatus("Starting Dr4gonik Hub", 1, "Thanks For Using!!")
 local fn, err = loadstring(assembled, "Dr4gonikHub")
 if not fn then
     setLoaderStatus("Compile failed", 1, tostring(err))
     error("Compile error: " .. tostring(err), 0)
 end
 
+task.wait(0.5)
 dismissLoader()
 fn()
 
