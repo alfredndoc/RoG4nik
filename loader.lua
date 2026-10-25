@@ -153,7 +153,7 @@ loaderCreate("UICorner", { CornerRadius = UDim.new(0, 8) }, Loader.Badge)
 
 Loader.Headline = loaderCreate("TextLabel", {
     Name = "Headline", Position = UDim2.new(0, 24, 0, 78), Size = UDim2.new(1, -48, 0, 24),
-    BackgroundTransparency = 1, Text = "Preparing RoG4nik", TextColor3 = loaderColor(Loader.Theme.Text),
+    BackgroundTransparency = 1, Text = "Loading RoG4nik", TextColor3 = loaderColor(Loader.Theme.Text),
     Font = Enum.Font.GothamBold, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2,
 }, Loader.Window)
 Loader.Detail = loaderCreate("TextLabel", {
