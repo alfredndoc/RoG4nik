@@ -255,6 +255,14 @@ if UIRefs.CodeScroll and UIRefs.CodeTextBox then
     UIRefs.CodeTextBox.SelectionColor3 = Theme.Accent
     UIRefs.CodeTextBox.ZIndex = 7
 
+    UIRefs.SyncCodeEditorMetrics = function()
+        if not UIRefs.CodeTextBox or not UIRefs.CodeTextBox.Parent then return end
+        local width = math.max(240, UIRefs.CodeScroll.AbsoluteSize.X - 54, UIRefs.CodeTextBox.TextBounds.X + 12)
+        UIRefs.CodeHighlight.Size = UDim2.new(0, width, 0, 0)
+        UIRefs.CodeTextBox.Size = UDim2.new(0, width, 0, 0)
+        UIRefs.CodeScroll.CanvasSize = UDim2.new(0, width + 54,
+            0, math.max(UIRefs.CodeScroll.AbsoluteSize.Y, UIRefs.CodeTextBox.TextBounds.Y + 16))
+    end
     UIRefs.UpdateCodeEditor = function()
         if not UIRefs.CodeTextBox or not UIRefs.CodeTextBox.Parent then return end
         local source = UIRefs.CodeTextBox.Text or ""
@@ -264,12 +272,11 @@ if UIRefs.CodeScroll and UIRefs.CodeTextBox then
         for line = 1, lineCount do numbers[line] = tostring(line) end
         UIRefs.CodeGutter.Text = table.concat(numbers, "\n")
         UIRefs.CodeHighlight.Text = UIRefs.HighlightLua(source)
-        local width = math.max(240, UIRefs.CodeScroll.AbsoluteSize.X - 54, UIRefs.CodeTextBox.TextBounds.X + 12)
-        UIRefs.CodeHighlight.Size = UDim2.new(0, width, 0, 0)
-        UIRefs.CodeTextBox.Size = UDim2.new(0, width, 0, 0)
-        UIRefs.CodeScroll.CanvasSize = UDim2.new(0, width + 54,
-            0, math.max(UIRefs.CodeScroll.AbsoluteSize.Y, UIRefs.CodeTextBox.TextBounds.Y + 16))
+        UIRefs.SyncCodeEditorMetrics()
     end
+
+    UIRefs.CodeTextBox:GetPropertyChangedSignal("TextBounds"):Connect(UIRefs.SyncCodeEditorMetrics)
+    UIRefs.CodeScroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(UIRefs.SyncCodeEditorMetrics)
 
     UIRefs.CodeEditorPreviousText = UIRefs.CodeTextBox.Text
     UIRefs.CodeEditorGuard = false
