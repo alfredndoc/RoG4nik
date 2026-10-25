@@ -1625,7 +1625,7 @@ UIRefs.IntroExclamation = create("TextLabel", {
     Name = "StartupExclamation", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
     Text = "!", TextColor3 = Theme.White, Font = Theme.FontBold, TextSize = 15,
     TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
-    ZIndex = 247,
+Rotation = -10, ZIndex = 247
 }, UIRefs.IntroExclamationBubble)
 
 UIRefs.IntroTitle = create("TextLabel", {
