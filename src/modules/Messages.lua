@@ -262,6 +262,7 @@ local function showConversation(id)
     for _, message in ipairs(conversation.history) do
         addMessageBubble(message.text, message.role, false, message.reasoning, message.model, message.toolKind, message.toolSuccess)
     end
+    RuntimeDiagnostics.ChatHistoryLoadedFor = id
 end
 
 local function createConversationRow(conversation)
