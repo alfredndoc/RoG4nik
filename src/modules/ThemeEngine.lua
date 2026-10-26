@@ -3,6 +3,7 @@
 --============================================================
 local ThemeEngine = {
     CurrentThemeName = "Dark",
+    AppliedThemeName = "Dark",
     DropdownChevronOffset = 21,
 }
 
@@ -70,6 +71,7 @@ function ThemeEngine.applyThemePreset(name)
         Theme[key] = value
     end
     ThemeEngine.CurrentThemeName = name
+    ThemeEngine.AppliedThemeName = name
     RuntimeDiagnostics.LastThemeSwitch = "Initial theme: " .. name
     return true
 end
@@ -469,6 +471,28 @@ themeKeyForColor = function(c, propName, sourceTheme)
     return nil
 end
 
+local THEME_PRESET_NAMES = {}
+for presetName in pairs(Themes) do
+    THEME_PRESET_NAMES[#THEME_PRESET_NAMES + 1] = presetName
+end
+table.sort(THEME_PRESET_NAMES)
+
+local function themeKeyForPaletteColor(color, propName, preferredRole)
+    if typeof(color) ~= "Color3" then return nil end
+    if preferredRole then
+        for _, presetName in ipairs(THEME_PRESET_NAMES) do
+            if Themes[presetName][preferredRole] == color then
+                return preferredRole
+            end
+        end
+    end
+    for _, presetName in ipairs(THEME_PRESET_NAMES) do
+        local role = themeKeyForColor(color, propName, Themes[presetName])
+        if role then return role end
+    end
+    return nil
+end
+
 local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRoles)
     local changes, misses = {}, {}
     if not root then return changes, misses end
@@ -488,11 +512,13 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
             if currentRole then
                 role = currentRole
             elseif not preserveInFlightRoles then
-                roles[property] = nil
-                role = nil
+                role = themeKeyForPaletteColor(current, property, role)
+                if not role then roles[property] = nil end
             end
         end
-        if not role then role = currentRole end
+        if not role then
+            role = currentRole or themeKeyForPaletteColor(current, property)
+        end
 
         if role and newTheme[role] then
             if not roles then
@@ -535,10 +561,12 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
                 if currentRole then
                     role = currentRole
                 elseif not preserveInFlightRoles then
-                    role = nil
+                    role = themeKeyForPaletteColor(keypoint.Value, "Color", role)
                 end
             end
-            if not role then role = currentRole end
+            if not role then
+                role = currentRole or themeKeyForPaletteColor(keypoint.Value, "Color")
+            end
 
             local targetColor = keypoint.Value
             if role and newTheme[role] then
@@ -637,29 +665,26 @@ local function setTheme(name)
         debugTrace("WARN", "Unknown theme: " .. tostring(name))
         return false
     end
-    if name == ThemeEngine.CurrentThemeName then
-        debugTrace("INFO", "Theme already active: " .. name)
+
+    local previousTargetName = ThemeEngine.CurrentThemeName
+    local activeThemeTransition = RuntimeDiagnostics.ActiveThemeTween ~= nil
+        or RuntimeDiagnostics.ActiveThemeConnection ~= nil
+    if name == previousTargetName and activeThemeTransition then
+        debugTrace("INFO", "Theme transition already targeting: " .. name)
         return true
     end
 
-    local oldName = ThemeEngine.CurrentThemeName
+    -- Keep the last fully rendered preset as the comparison baseline. The selected
+    -- name can advance before an animation finishes or after an interrupted switch.
+    local oldName = Themes[ThemeEngine.AppliedThemeName] and ThemeEngine.AppliedThemeName
+        or previousTargetName
     local oldTheme = {}
     for k, v in pairs(Theme) do oldTheme[k] = v end
+    for k, v in pairs(Themes[oldName]) do oldTheme[k] = v end
 
     local newThemeSnapshot = {}
     for k, v in pairs(Theme) do newThemeSnapshot[k] = v end
     for k, v in pairs(Themes[name]) do newThemeSnapshot[k] = v end
-    -- Theme includes font entries as well as colors. Keep the active theme table's
-    -- extra fields (fonts) and only replace the theme values from the selected preset.
-    for k, v in pairs(Themes[name]) do Theme[k] = v end
-    ThemeEngine.CurrentThemeName = name
-    RuntimeDiagnostics.ThemeSaveToken += 1
-    local saveToken = RuntimeDiagnostics.ThemeSaveToken
-    -- File writes can block the input frame. Coalesce rapid theme selections and
-    -- persist the final choice just after the visual transition has started.
-    task.delay(0.15, function()
-        if RuntimeDiagnostics.ThemeSaveToken == saveToken then saveSettings() end
-    end)
 
     local root = playerGui:FindFirstChild("DeepSeekUI")
     if not root then
@@ -667,15 +692,30 @@ local function setTheme(name)
         return false
     end
 
-    RuntimeDiagnostics.ThemeTransitionToken += 1
-    local generation = RuntimeDiagnostics.ThemeTransitionToken
-
-    -- Cancel the previous animation cleanly. An interrupted transition starts from
-    -- the actual on-screen colors, not from a stale theme snapshot.
+    -- Collect first. If a property or object causes a scan failure, the current
+    -- animation and selected/applied theme state remain intact.
     local activeObjectTweens = RuntimeDiagnostics.ActiveThemeObjectTweens
     local preserveInFlightRoles = RuntimeDiagnostics.ActiveThemeTween ~= nil
         or RuntimeDiagnostics.ActiveThemeConnection ~= nil
         or (activeObjectTweens ~= nil and #activeObjectTweens > 0)
+    local collected, changes, misses = pcall(
+        collectThemeChanges, root, oldTheme, newThemeSnapshot, preserveInFlightRoles
+    )
+    if not collected then
+        debugTrace("ERROR", "Theme color scan failed: " .. tostring(changes))
+        return false
+    end
+
+    if name == previousTargetName and name == oldName and #changes == 0
+        and not preserveInFlightRoles then
+        return true
+    end
+
+    -- Only commit the target after a complete scan succeeds. This avoids leaving
+    -- Theme/current-name state ahead of the actual UI when an error occurs.
+    RuntimeDiagnostics.ThemeTransitionToken += 1
+    local generation = RuntimeDiagnostics.ThemeTransitionToken
+
     if activeObjectTweens then
         for _, objectTween in ipairs(activeObjectTweens) do
             pcall(function() objectTween:Cancel() end)
@@ -695,7 +735,15 @@ local function setTheme(name)
         RuntimeDiagnostics.ActiveThemeProgress = nil
     end
 
-    local changes, misses = collectThemeChanges(root, oldTheme, newThemeSnapshot, preserveInFlightRoles)
+    for k, v in pairs(Themes[name]) do Theme[k] = v end
+    ThemeEngine.CurrentThemeName = name
+    RuntimeDiagnostics.ThemeSaveToken += 1
+    local saveToken = RuntimeDiagnostics.ThemeSaveToken
+    -- Coalesce file writes so rapid theme changes persist only the final choice.
+    task.delay(0.15, function()
+        if RuntimeDiagnostics.ThemeSaveToken == saveToken then saveSettings() end
+    end)
+
     cancelThemeColorTweens(changes)
     local overlay = RuntimeDiagnostics.ThemeTransitionOverlay
     local transitionDuration = preserveInFlightRoles and 0.28 or 0.42
@@ -717,6 +765,7 @@ local function setTheme(name)
     local function finishThemeTransition()
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
         transitionFinished = true
+        ThemeEngine.AppliedThemeName = name
         if overlay and overlay.Parent then
             -- Progress reaches full transparency before the transition surface is hidden.
             overlay.Visible = false
