@@ -986,7 +986,7 @@ local sliderHorizontalInset = 18
 local sliderTrackBg = create("Frame", {
     Position = UDim2.new(0, sliderHorizontalInset, 0, 44),
     Size = UDim2.new(1, -sliderHorizontalInset * 2, 0, 6),
-    BackgroundColor3 = Theme.Border, BorderSizePixel = 0, ZIndex = 32,
+    BackgroundColor3 = Theme.Border, BorderSizePixel = 0, Active = true, ZIndex = 32,
 }, UIRefs.EffortPopup)
 corner(sliderTrackBg, 3)
 local sliderFill = create("Frame", {
@@ -998,7 +998,7 @@ local sliderEffortGradient = create("UIGradient", { Rotation = 0, Color = UIRefs
 local sliderKnob = create("Frame", {
     Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new((effortIndex - 1) / (#effortLevelNames - 1), 0, 0.5, 0),
-    Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Theme.White, BorderSizePixel = 0, ZIndex = 34,
+    Size = UDim2.fromOffset(16, 16), BackgroundColor3 = Theme.White, BorderSizePixel = 0, Active = true, ZIndex = 34,
 }, sliderTrackBg)
 corner(sliderKnob, 8)
 local sliderKnobStroke = create("UIStroke", {
