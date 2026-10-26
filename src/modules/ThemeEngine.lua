@@ -15,6 +15,7 @@ local RuntimeDiagnostics = {
     ThemeDebugLabel = nil,
     ThemeTransitionOverlay = nil,
     ThemeTransitionToken = 0,
+    ThemeSaveToken = 0,
     ActiveThemeTween = nil,
     ActiveThemeConnection = nil,
     ActiveThemeProgress = nil,
@@ -391,6 +392,16 @@ local THEME_KEY_PRIORITY = {
     Color = { "Accent", "AccentHover", "Border", "Danger", "MutedText", "QuietText", "PrimaryText", "White" },
 }
 
+-- Preset keys are stable, so build the deterministic fallback order once rather
+-- than sorting and allocating a key list for every color inspected at switch time.
+local THEME_COLOR_KEY_FALLBACK = {}
+for key, value in pairs(Themes.Dark or Theme) do
+    if typeof(value) == "Color3" then
+        THEME_COLOR_KEY_FALLBACK[#THEME_COLOR_KEY_FALLBACK + 1] = key
+    end
+end
+table.sort(THEME_COLOR_KEY_FALLBACK)
+
 themeKeyForColor = function(c, propName, sourceTheme)
     if typeof(c) ~= "Color3" then return nil end
     sourceTheme = sourceTheme or Theme
@@ -400,11 +411,8 @@ themeKeyForColor = function(c, propName, sourceTheme)
             if sourceTheme[key] == c then return key end
         end
     end
-    local keys = {}
-    for key in pairs(sourceTheme) do keys[#keys + 1] = key end
-    table.sort(keys)
-    for _, key in ipairs(keys) do
-        if typeof(sourceTheme[key]) == "Color3" and sourceTheme[key] == c then return key end
+    for _, key in ipairs(THEME_COLOR_KEY_FALLBACK) do
+        if sourceTheme[key] == c then return key end
     end
     return nil
 end
@@ -412,55 +420,48 @@ end
 local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRoles)
     local changes, misses = {}, {}
     if not root then return changes, misses end
-    -- Some controls update their colors after construction, so the creation-time
-    -- role registry alone is incomplete. Scan once when switching themes and infer
-    -- roles from the colors actually on screen; the large-change path below avoids
-    -- repeating this work during every animation frame.
-    local objects = { root }
-    for _, obj in ipairs(root:GetDescendants()) do objects[#objects + 1] = obj end
 
-    for _, obj in ipairs(objects) do
-        local roles = ThemeRoleRegistry[obj]
-        for propName in pairs(ThemeColorProperties) do
-            local readOk, current = pcall(function() return obj[propName] end)
-            if readOk and typeof(current) == "Color3" then
-                local role = roles and roles[propName]
-                local currentRole = themeKeyForColor(current, propName, oldTheme)
-                -- Exact palette colors can be reclassified after controls update.
-                -- Values outside the palette are often intentional status/syntax
-                -- colors, so drop stale roles unless a previous animation was cut
-                -- short and left an in-between color on screen.
-                if role and oldTheme[role] ~= current then
-                    if currentRole then
-                        role = currentRole
-                    elseif not preserveInFlightRoles then
-                        role = nil
-                        if roles then roles[propName] = nil end
+    -- Every theme-aware color is indexed when its object is created. Walking the
+    -- full UI tree and probing every possible color property creates avoidable
+    -- work, especially after chat history has accumulated many generated labels.
+    for obj, roles in pairs(ThemeRoleRegistry) do
+        if obj == root or (obj and obj.Parent and obj:IsDescendantOf(root)) then
+            for propName, registeredRole in pairs(roles) do
+                local current = obj[propName]
+                if typeof(current) == "Color3" then
+                    local role = registeredRole
+                    local currentRole = themeKeyForColor(current, propName, oldTheme)
+                    -- Exact palette colors can be reclassified after controls update.
+                    -- Values outside the palette are often intentional status/syntax
+                    -- colors, so drop stale roles unless a previous animation was cut
+                    -- short and left an in-between color on screen.
+                    if role and oldTheme[role] ~= current then
+                        if currentRole then
+                            role = currentRole
+                        elseif not preserveInFlightRoles then
+                            role = nil
+                            roles[propName] = nil
+                        end
                     end
-                end
-                if not role then role = currentRole end
+                    if not role then role = currentRole end
 
-                if role and newTheme[role] then
-                    if not roles then
-                        roles = {}
-                        ThemeRoleRegistry[obj] = roles
-                    end
-                    roles[propName] = role
-                    local target = newTheme[role]
-                    if target ~= current then
-                        changes[#changes + 1] = {
-                            object = obj,
-                            property = propName,
-                            from = current,
-                            to = target,
-                            role = role,
+                    if role and newTheme[role] then
+                        roles[propName] = role
+                        local target = newTheme[role]
+                        if target ~= current then
+                            changes[#changes + 1] = {
+                                object = obj,
+                                property = propName,
+                                from = current,
+                                to = target,
+                            }
+                        end
+                    elseif role and #misses < 60 then
+                        misses[#misses + 1] = {
+                            path = pathOf(obj), prop = propName, color = current,
+                            role = role, reason = "theme preset is missing a registered role",
                         }
                     end
-                elseif role and #misses < 60 then
-                    misses[#misses + 1] = {
-                        path = pathOf(obj), prop = propName, color = current,
-                        role = role, reason = "theme preset is missing a registered role",
-                    }
                 end
             end
         end
@@ -490,7 +491,13 @@ local function setTheme(name)
     -- extra fields (fonts) and only replace the theme values from the selected preset.
     for k, v in pairs(Themes[name]) do Theme[k] = v end
     ThemeEngine.CurrentThemeName = name
-    saveSettings()
+    RuntimeDiagnostics.ThemeSaveToken += 1
+    local saveToken = RuntimeDiagnostics.ThemeSaveToken
+    -- File writes can block the input frame. Coalesce rapid theme selections and
+    -- persist the final choice just after the visual transition has started.
+    task.delay(0.15, function()
+        if RuntimeDiagnostics.ThemeSaveToken == saveToken then saveSettings() end
+    end)
 
     local root = playerGui:FindFirstChild("DeepSeekUI")
     if not root then
@@ -591,7 +598,7 @@ local function setTheme(name)
     -- every property on every animation frame stalls the render thread. Apply those
     -- colors once, then animate the lightweight full-window wash for a smooth
     -- transition. Small changes retain the precise per-property interpolation.
-    local useOverlayOnly = #changes > 120
+    local useOverlayOnly = #changes > 48
     if useOverlayOnly then
         for _, change in ipairs(changes) do
             if change.object and change.object.Parent then
