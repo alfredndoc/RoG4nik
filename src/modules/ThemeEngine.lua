@@ -28,7 +28,6 @@ local ThemeDebug = {
     History = {}, LastMisses = {}, TotalUpdates = 0, TotalMisses = 0,
     LastScan = nil, LastRoleRecoveries = 0, LastRoleDrops = 0,
 }
-ThemeDebug.DebugLoggingEnabled = true
 ThemeEngine.ThemeDebug = ThemeDebug
 _G.ThemeDebug = ThemeDebug
 
