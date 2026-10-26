@@ -280,8 +280,8 @@ local function updateGlassEdge(obj, appearance)
         if edge then edge:Destroy() end
         return
     end
-    local function styleEdge(strokeObject)
-        local currentAppearance = resolvedAppearance()
+    local function styleEdge(strokeObject, currentAppearance)
+        currentAppearance = currentAppearance or appearance
         strokeObject.Color = Theme.Border
         strokeObject.Thickness = 1
         strokeObject.Transparency = math.clamp(0.75 - (currentAppearance.Gloss * 0.45), 0.2, 0.9)
@@ -291,7 +291,8 @@ local function updateGlassEdge(obj, appearance)
     elseif not obj:FindFirstChildOfClass("UIStroke") then
         -- Wait one scheduler turn so a control's explicit border can be created first.
         task.defer(function()
-            if not obj.Parent or not resolvedAppearance().Glass or obj:FindFirstChildOfClass("UIStroke") then return end
+            local currentAppearance = resolvedAppearance()
+            if not obj.Parent or not currentAppearance.Glass or obj:FindFirstChildOfClass("UIStroke") then return end
             if obj.AbsoluteSize.X < 28 or obj.AbsoluteSize.Y < 20 then return end
             local glassStroke = Instance.new("UIStroke")
             glassStroke.Name = "ThemeGlassStroke"
@@ -299,19 +300,19 @@ local function updateGlassEdge(obj, appearance)
             glassStroke.Parent = obj
             ThemeStrokeBase[glassStroke] = { Transparency = 0.75, Thickness = 1 }
             ThemeRoleRegistry[glassStroke] = { Color = "Border" }
-            styleEdge(glassStroke)
+            styleEdge(glassStroke, currentAppearance)
         end)
     end
 end
 
-applyAppearanceToObject = function(obj)
+applyAppearanceToObject = function(obj, appearance)
     if not obj then return end
     if obj:IsA("UIStroke") then
         local base = ThemeStrokeBase[obj]
         local parentRoles = obj.Parent and ThemeRoleRegistry[obj.Parent]
         if not base or not parentRoles or not parentRoles.BackgroundColor3
             or not ThemeSurfaceRoles[parentRoles.BackgroundColor3] then return end
-        local appearance = resolvedAppearance()
+        appearance = appearance or resolvedAppearance()
         obj.Transparency = math.clamp(base.Transparency - (appearance.Gloss * 0.3), 0, 1)
         obj.Thickness = base.Thickness + (appearance.Gloss * 0.5)
         return
@@ -323,7 +324,7 @@ applyAppearanceToObject = function(obj)
     local baseTransparency = ThemeBaseTransparency[obj]
     if baseTransparency == nil or baseTransparency >= 0.75 then return end
 
-    local appearance = resolvedAppearance()
+    appearance = appearance or resolvedAppearance()
     obj.BackgroundTransparency = baseTransparency + ((1 - baseTransparency) * appearance.Transparency)
     updateGlassEdge(obj, appearance)
     if obj:IsA("Frame") then
@@ -359,12 +360,15 @@ function ThemeEngine.setAppearanceSettings(settings)
     ThemeAppearance.GradientStartRGB = tostring(settings.GradientStartRGB or "255, 255, 255")
     ThemeAppearance.GradientEndRGB = tostring(settings.GradientEndRGB or "224, 228, 240")
     if not wasAppearanceEnabled and not ThemeAppearance.Simple and not ThemeAppearance.Advanced then return end
+    local appearance = resolvedAppearance()
     for obj in pairs(ThemeRoleRegistry) do
-        if obj and obj.Parent then applyAppearanceToObject(obj) end
+        if obj and obj.Parent and not obj:IsA("UIStroke") then
+            applyAppearanceToObject(obj, appearance)
+        end
     end
     -- Reapply stroke styling after their parent surfaces have been visited.
     for obj in pairs(ThemeStrokeBase) do
-        if obj and obj.Parent then applyAppearanceToObject(obj) end
+        if obj and obj.Parent then applyAppearanceToObject(obj, appearance) end
     end
 end
 ThemeEngine.getAppearanceSettings = function()
