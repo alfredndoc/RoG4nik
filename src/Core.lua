@@ -762,8 +762,8 @@ UIRefs.SaveAsPopup = create("Frame", {
 corner(UIRefs.SaveAsPopup, 12); stroke(UIRefs.SaveAsPopup, Theme.Border, 1, 0.1)
 
 UIRefs.SaveAsBackdrop = create("TextButton", {
-    Name = "SaveAsBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0.5,
-    BackgroundColor3 = Color3.new(0,0,0), Text = "", AutoButtonColor = false, Visible = false, ZIndex = 99
+    Name = "SaveAsBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0,
+    BackgroundColor3 = Theme.Background, Text = "", AutoButtonColor = false, Visible = false, ZIndex = 99
 }, UIRefs.CodeEditorFrame)
 
 UIRefs.SaveAsList = create("ScrollingFrame", {
@@ -785,7 +785,9 @@ end)
 
 local function openSaveAsPopup()
     for _, child in ipairs(UIRefs.SaveAsList:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
+        if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+            child:Destroy()
+        end
     end
 
     local items = _G.listHubScripts()
