@@ -1514,7 +1514,8 @@ RuntimeDiagnostics.BeginMainWindowDrag = function(input)
         for _, object in ipairs(hitObjects) do
             if object ~= UIRefs.MainFrame and object:IsDescendantOf(UIRefs.MainFrame) then
                 if object:IsA("GuiButton") or object:IsA("TextBox")
-                    or (object.Active and not object:IsA("ScrollingFrame")) then return end
+                    or (object.Active and not object:IsA("ScrollingFrame")
+                        and object ~= UIRefs.TitleGroup and object ~= UIRefs.IntroOverlay) then return end
             end
         end
     end
