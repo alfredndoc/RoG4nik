@@ -544,11 +544,36 @@ local function setTheme(name)
     local oldAccentHover = oldTheme.AccentHover or oldAccent
     local newAccent = newThemeSnapshot.Accent or Theme.Accent
     local newAccentHover = newThemeSnapshot.AccentHover or newAccent
+    local transitionDuration = preserveInFlightRoles and 0.28 or 0.42
+    local changeGroups, changesByObject = {}, {}
+    for _, change in ipairs(changes) do
+        local object = change.object
+        if object and object.Parent
+            and not (object == overlay and change.property == "BackgroundColor3") then
+            local group = changesByObject[object]
+            if not group then
+                group = { object = object, changes = {} }
+                changesByObject[object] = group
+                changeGroups[#changeGroups + 1] = group
+            end
+            group.changes[#group.changes + 1] = change
+        end
+    end
     local transitionFinished = false
 
     local function finishThemeTransition()
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
         transitionFinished = true
+        -- Snap the last frame to the selected palette so interrupted or rounded
+        -- progress values can never leave a control on a previous theme.
+        for _, group in ipairs(changeGroups) do
+            local object = group.object
+            if object and object.Parent then
+                for _, change in ipairs(group.changes) do
+                    object[change.property] = change.to
+                end
+            end
+        end
         if overlay and overlay.Parent then
             overlay.BackgroundTransparency = 1
             overlay.BackgroundColor3 = overlayGoalBg
@@ -600,9 +625,8 @@ local function setTheme(name)
 
     if overlay and overlay.Parent then overlay.Visible = true end
 
-    -- Group color goals by instance and start one native tween per instance. The
-    -- engine interpolates all affected controls together without a Lua loop on every
-    -- frame or batches that visibly switch the interface in pieces.
+    -- A single eased progress value drives every tracked color on the same frame.
+    -- This keeps the whole palette synchronized without creating one tween per UI object.
     local progress = Instance.new("NumberValue")
     progress.Name = "ThemeTransitionProgress"
     progress.Value = 0
@@ -610,6 +634,14 @@ local function setTheme(name)
 
     local function applyProgress(alpha)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
+        for _, group in ipairs(changeGroups) do
+            local object = group.object
+            if object and object.Parent then
+                for _, change in ipairs(group.changes) do
+                    object[change.property] = change.from:Lerp(change.to, alpha)
+                end
+            end
+        end
         if overlay and overlay.Parent then
             overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
             -- Keep the same subtle wash while controls transition in parallel.
@@ -628,42 +660,9 @@ local function setTheme(name)
         applyProgress(progress.Value)
     end)
 
-    local changesByObject = {}
-    for _, change in ipairs(changes) do
-        local object = change.object
-        if object and object.Parent
-            and not (object == overlay and change.property == "BackgroundColor3") then
-            local goals = changesByObject[object]
-            if not goals then
-                goals = {}
-                changesByObject[object] = goals
-            end
-            goals[change.property] = change.to
-        end
-    end
-
-    local activeObjectTweens = {}
-    local objectTweenInfo = TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-    for object, goals in pairs(changesByObject) do
-        if object.Parent then
-            local ok, objectTween = pcall(function()
-                return TweenService:Create(object, objectTweenInfo, goals)
-            end)
-            if ok and objectTween then
-                activeObjectTweens[#activeObjectTweens + 1] = objectTween
-                objectTween:Play()
-            else
-                for property, target in pairs(goals) do
-                    pcall(function() object[property] = target end)
-                end
-            end
-        end
-    end
-    RuntimeDiagnostics.ActiveThemeObjectTweens = activeObjectTweens
-
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
-        TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+        TweenInfo.new(transitionDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
         { Value = 1 }
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
