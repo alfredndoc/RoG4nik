@@ -423,49 +423,68 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
     local changes, misses = {}, {}
     if not root then return changes, misses end
 
-    -- Every theme-aware color is indexed when its object is created. Walking the
-    -- full UI tree and probing every possible color property creates avoidable
-    -- work, especially after chat history has accumulated many generated labels.
-    for obj, roles in pairs(ThemeRoleRegistry) do
-        if obj == root or (obj and obj.Parent and obj:IsDescendantOf(root)) then
-            for propName, registeredRole in pairs(roles) do
-                local current = obj[propName]
-                if typeof(current) == "Color3" then
-                    local role = registeredRole
-                    local currentRole = themeKeyForColor(current, propName, oldTheme)
-                    -- Exact palette colors can be reclassified after controls update.
-                    -- Values outside the palette are often intentional status/syntax
-                    -- colors, so drop stale roles unless a previous animation was cut
-                    -- short and left an in-between color on screen.
-                    if role and oldTheme[role] ~= current then
-                        if currentRole then
-                            role = currentRole
-                        elseif not preserveInFlightRoles then
-                            role = nil
-                            roles[propName] = nil
-                        end
-                    end
-                    if not role then role = currentRole end
+    -- Walk the live GUI once per switch so theme colors assigned after creation
+    -- are not missed. The registry keeps each property's role when a previous
+    -- transition was interrupted and its current color is between preset values.
+    local function collectProperty(obj, property)
+        local current = obj[property]
+        if typeof(current) ~= "Color3" then return end
 
-                    if role and newTheme[role] then
-                        roles[propName] = role
-                        local target = newTheme[role]
-                        if target ~= current then
-                            changes[#changes + 1] = {
-                                object = obj,
-                                property = propName,
-                                from = current,
-                                to = target,
-                            }
-                        end
-                    elseif role and #misses < 60 then
-                        misses[#misses + 1] = {
-                            path = pathOf(obj), prop = propName, color = current,
-                            role = role, reason = "theme preset is missing a registered role",
-                        }
-                    end
-                end
+        local roles = ThemeRoleRegistry[obj]
+        local role = roles and roles[property]
+        local currentRole = themeKeyForColor(current, property, oldTheme)
+        if role and oldTheme[role] ~= current then
+            if currentRole then
+                role = currentRole
+            elseif not preserveInFlightRoles then
+                roles[property] = nil
+                role = nil
             end
+        end
+        if not role then role = currentRole end
+
+        if role and newTheme[role] then
+            if not roles then
+                roles = {}
+                ThemeRoleRegistry[obj] = roles
+            end
+            roles[property] = role
+            local target = newTheme[role]
+            if target ~= current then
+                changes[#changes + 1] = {
+                    object = obj,
+                    property = property,
+                    from = current,
+                    to = target,
+                }
+            end
+        elseif role and #misses < 60 then
+            misses[#misses + 1] = {
+                path = pathOf(obj), prop = property, color = current,
+                role = role, reason = "theme preset is missing a registered role",
+            }
+        end
+    end
+
+    for _, obj in ipairs(root:GetDescendants()) do
+        if obj:IsA("GuiObject") then
+            collectProperty(obj, "BackgroundColor3")
+            collectProperty(obj, "BorderColor3")
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                collectProperty(obj, "TextColor3")
+                collectProperty(obj, "TextStrokeColor3")
+            end
+            if obj:IsA("TextBox") then
+                collectProperty(obj, "PlaceholderColor3")
+            end
+            if obj:IsA("ImageLabel") or obj:IsA("ImageButton") or obj:IsA("ViewportFrame") then
+                collectProperty(obj, "ImageColor3")
+            end
+            if obj:IsA("ScrollingFrame") then
+                collectProperty(obj, "ScrollBarImageColor3")
+            end
+        elseif obj:IsA("UIStroke") then
+            collectProperty(obj, "Color")
         end
     end
     return changes, misses
@@ -564,29 +583,11 @@ local function setTheme(name)
     local function finishThemeTransition()
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
         transitionFinished = true
-        -- Snap the last frame to the selected palette so interrupted or rounded
-        -- progress values can never leave a control on a previous theme.
-        for _, group in ipairs(changeGroups) do
-            local object = group.object
-            if object and object.Parent then
-                for _, change in ipairs(group.changes) do
-                    object[change.property] = change.to
-                end
-            end
-        end
         if overlay and overlay.Parent then
             overlay.BackgroundTransparency = 1
-            overlay.BackgroundColor3 = overlayGoalBg
             -- Hide the transition surface explicitly. UIGradient transparency can
             -- still render independently of the frame's BackgroundTransparency.
             overlay.Visible = false
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, newAccent),
-                ColorSequenceKeypoint.new(0.5, newAccentHover),
-                ColorSequenceKeypoint.new(1, newAccent),
-            })
         end
 
         ThemeDebug.TotalUpdates += #changes
