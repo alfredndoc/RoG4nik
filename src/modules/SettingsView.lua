@@ -923,6 +923,7 @@ addToggleRow(BehaviorSection, "Include workspace snapshot",
 
 -- Diagnostics
 local DiagnosticsSection = makeSection("Debug & diagnostics", 9)
+DiagnosticsSection.Visible = false
 local ConnectionStatus = create("TextLabel", {
     Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1,
     Text = "Connection not tested.",
