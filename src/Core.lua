@@ -657,8 +657,56 @@ styleScrollBar(UIRefs.ScriptUI.List); create("UIListLayout", {Padding=UDim.new(0
 function UIRefs.ScriptUI.refreshCards()
     for _, child in ipairs(UIRefs.ScriptUI.List:GetChildren()) do if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end end
     local items = _G.listHubScripts()
-    if #items==0 then
-        create("TextLabel", {Size=UDim2.new(1,-8,0,82), BackgroundColor3=Theme.Panel, Text="No saved scripts yet\nWrite code in the Code tab, name it above, then press Save Script.", TextColor3=Theme.MutedText, Font=Theme.Font, TextSize=13, TextWrapped=true, ZIndex=5}, UIRefs.ScriptUI.List)
+    if #items == 0 then
+        local emptyCard = create("Frame", {
+            Name = "EmptyScriptsCard", Size = UDim2.new(1, -8, 0, 116),
+            BackgroundColor3 = Theme.PanelRaised, BorderSizePixel = 0, ZIndex = 5,
+        }, UIRefs.ScriptUI.List)
+        corner(emptyCard, 12)
+        stroke(emptyCard, Theme.Border, 1, 0.22)
+
+        local accentStripe = create("Frame", {
+            Position = UDim2.new(0, 10, 0, 14), Size = UDim2.new(0, 3, 1, -28),
+            BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, ZIndex = 6,
+        }, emptyCard)
+        corner(accentStripe, 2)
+
+        local emptyGlyph = create("Frame", {
+            Position = UDim2.new(0, 20, 0.5, -17), Size = UDim2.fromOffset(34, 34),
+            BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 6,
+        }, emptyCard)
+        corner(emptyGlyph, 10)
+        create("TextLabel", {
+            Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+            Text = "</>", TextColor3 = Theme.Accent, Font = Theme.FontCode, TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+            ZIndex = 7,
+        }, emptyGlyph)
+
+        create("TextLabel", {
+            Position = UDim2.new(0, 66, 0, 25), Size = UDim2.new(1, -170, 0, 20),
+            BackgroundTransparency = 1, Text = "No saved scripts yet",
+            TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6,
+        }, emptyCard)
+        create("TextLabel", {
+            Position = UDim2.new(0, 66, 0, 48), Size = UDim2.new(1, -170, 0, 46),
+            BackgroundTransparency = 1,
+            Text = "Save a script from the Code tab. Your scripts will appear here for quick access.",
+            TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 11, TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+            ZIndex = 6,
+        }, emptyCard)
+
+        local openCodeButton = create("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
+            Size = UDim2.fromOffset(86, 30), BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0, Text = "Open Code", TextColor3 = Theme.White,
+            Font = Theme.FontBold, TextSize = 11, AutoButtonColor = false, ZIndex = 7,
+        }, emptyCard)
+        corner(openCodeButton, 8)
+        bindSoftButton(openCodeButton, { BackgroundColor3 = Theme.AccentHover }, 1.02)
+        openCodeButton.MouseButton1Click:Connect(function() setActiveTab("Code") end)
         return
     end
     for i,item in ipairs(items) do
@@ -1064,12 +1112,18 @@ local function updateFromPointer(px)
     local idx = math.floor(rel * (#effortLevelNames - 1) + 0.5) + 1
     if idx ~= effortIndex then setEffortIndex(idx) end
 end
-sliderKnob.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliderDragging = true end
-end)
+local function beginEffortSliderDrag(input)
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    sliderDragging = true
+    RuntimeDiagnostics.EffortSliderDragging = true
+    -- UIS.InputBegan may run before the GuiObject event; cancel any window drag it started.
+    RuntimeDiagnostics.Dragging = false
+    RuntimeDiagnostics.DragPointerType = nil
+end
+sliderKnob.InputBegan:Connect(beginEffortSliderDrag)
 sliderTrackBg.InputBegan:Connect(function(input)
+    beginEffortSliderDrag(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        sliderDragging = true
         local pointerX = input.UserInputType == Enum.UserInputType.Touch and input.Position.X
             or UIRefs.UserInputService:GetMouseLocation().X
         updateFromPointer(pointerX)
@@ -1085,6 +1139,7 @@ UIRefs.UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         local wasDragging = sliderDragging
         sliderDragging = false
+        RuntimeDiagnostics.EffortSliderDragging = false
         if wasDragging then saveSettings() end
     end
 end)
@@ -1511,8 +1566,9 @@ RuntimeDiagnostics.GetPointerPosition = function(input)
 end
 
 RuntimeDiagnostics.BeginMainWindowDrag = function(input, fromTitleRegion)
-    if RuntimeDiagnostics.Dragging or not UIRefs.ScreenGui.Enabled
-        or UIRefs.WindowState.state == "maximized" or UIRefs.WindowState.resizing then return end
+    if RuntimeDiagnostics.EffortSliderDragging or RuntimeDiagnostics.Dragging
+        or not UIRefs.ScreenGui.Enabled or UIRefs.WindowState.state == "maximized"
+        or UIRefs.WindowState.resizing then return end
     local inputType = input.UserInputType
     if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then return end
 
@@ -1568,7 +1624,10 @@ end
 UIRefs.TitleGroup.InputBegan:Connect(function(input)
     RuntimeDiagnostics.BeginMainWindowDrag(input, true)
 end)
-UIRefs.UserInputService.InputBegan:Connect(RuntimeDiagnostics.BeginMainWindowDrag)
+UIRefs.UserInputService.InputBegan:Connect(function(input)
+    -- Do not pass gameProcessedEvent as the title-region flag.
+    RuntimeDiagnostics.BeginMainWindowDrag(input, false)
+end)
 
 UIRefs.UserInputService.InputChanged:Connect(function(input)
     if not UIRefs.ScreenGui.Enabled then return end
