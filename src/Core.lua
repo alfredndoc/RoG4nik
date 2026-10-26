@@ -1112,7 +1112,7 @@ local function updateFromPointer(px)
     local idx = math.floor(rel * (#effortLevelNames - 1) + 0.5) + 1
     if idx ~= effortIndex then setEffortIndex(idx) end
 end
-local function beginEffortSliderDrag(input)
+RuntimeDiagnostics.BeginEffortSliderDrag = function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
     sliderDragging = true
     RuntimeDiagnostics.EffortSliderDragging = true
@@ -1120,9 +1120,9 @@ local function beginEffortSliderDrag(input)
     RuntimeDiagnostics.Dragging = false
     RuntimeDiagnostics.DragPointerType = nil
 end
-sliderKnob.InputBegan:Connect(beginEffortSliderDrag)
+sliderKnob.InputBegan:Connect(RuntimeDiagnostics.BeginEffortSliderDrag)
 sliderTrackBg.InputBegan:Connect(function(input)
-    beginEffortSliderDrag(input)
+    RuntimeDiagnostics.BeginEffortSliderDrag(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         local pointerX = input.UserInputType == Enum.UserInputType.Touch and input.Position.X
             or UIRefs.UserInputService:GetMouseLocation().X
@@ -1554,6 +1554,7 @@ end)
 -- RuntimeDiagnostics instead of adding more top-level locals.
 --============================================================
 RuntimeDiagnostics.Dragging = false
+RuntimeDiagnostics.EffortSliderDragging = false
 RuntimeDiagnostics.DragPointerType = nil
 RuntimeDiagnostics.DragStartPointer = Vector2.new(0, 0)
 RuntimeDiagnostics.DragStartAbsolute = Vector2.new(0, 0)
