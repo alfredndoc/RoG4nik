@@ -96,7 +96,7 @@ local function applyAppearanceToObject(obj) end
 local ThemeColorProperties = {
     BackgroundColor3 = true, TextColor3 = true, ImageColor3 = true, Color = true,
     PlaceholderColor3 = true, ScrollBarImageColor3 = true, BorderColor3 = true,
-    TextStrokeColor3 = true, SelectionColor3 = true, Ambient = true, LightColor = true,
+    TextStrokeColor3 = true, Ambient = true, LightColor = true,
 }
 
 local function create(className, props, parent)
@@ -440,7 +440,6 @@ local THEME_KEY_PRIORITY = {
     BorderColor3 = { "Border", "Accent", "Danger" },
     TextStrokeColor3 = { "Border", "Accent", "Danger", "PrimaryText", "White" },
     Color = { "Accent", "AccentHover", "AccentSoft", "Border", "Danger", "MutedText", "QuietText", "PrimaryText", "White" },
-    SelectionColor3 = { "Accent", "AccentHover", "AccentSoft" },
     Ambient = { "Background", "Sidebar", "Panel", "PanelRaised", "RightBg" },
     LightColor = { "PrimaryText", "White", "Accent", "AccentHover" },
 }
@@ -478,8 +477,9 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
     -- are not missed. The registry keeps each property's role when a previous
     -- transition was interrupted and its current color is between preset values.
     local function collectProperty(obj, property)
-        local current = obj[property]
-        if typeof(current) ~= "Color3" then return end
+        -- A bad or unsupported property name must never abort the whole theme scan.
+        local ok, current = pcall(function() return obj[property] end)
+        if not ok or typeof(current) ~= "Color3" then return end
 
         local roles = ThemeRoleRegistry[obj]
         local role = roles and roles[property]
@@ -574,7 +574,6 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
             end
             if obj:IsA("TextBox") then
                 collectProperty(obj, "PlaceholderColor3")
-                collectProperty(obj, "SelectionColor3")
             end
             if obj:IsA("ImageLabel") or obj:IsA("ImageButton") or obj:IsA("ViewportFrame") then
                 collectProperty(obj, "ImageColor3")
