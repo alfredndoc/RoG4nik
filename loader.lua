@@ -51,7 +51,7 @@ local MODULES = {
 -- Read the persisted theme before downloading or assembling the UI modules.
 -- Keep these small palettes synchronized with src/modules/Themes.lua.
 --============================================================
-local Loader = { Completed = 0, Total = 1 + #MODULES }
+local Loader = { Completed = 0, Total = 1 + #MODULES, DebugLoggingEnabled = false }
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -350,7 +350,7 @@ local function fetchText(path)
     return result
 end
 
-print("Fetching modules...")
+if Loader.DebugLoggingEnabled then print("Fetching modules...") end
 setLoaderStatus("Fetching Core", 0, "Loading Core")
 local assembled = fetchText(CORE_PATH)
 
@@ -380,7 +380,7 @@ if assembled:find("GITHUB_MODULE:", 1, true) then
     error("Assembly failed: unresolved module marker remains.", 0)
 end
 
-print("Executing...")
+if Loader.DebugLoggingEnabled then print("Executing...") end
 setLoaderStatus("Starting Dr4gonik Hub", 1, "Thanks For Using!!")
 local fn, err = loadstring(assembled, "Dr4gonikHub")
 if not fn then
