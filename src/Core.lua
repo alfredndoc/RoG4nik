@@ -1495,7 +1495,8 @@ RuntimeDiagnostics.GetPointerPosition = function(input)
 end
 
 RuntimeDiagnostics.BeginMainWindowDrag = function(input)
-    if not UIRefs.ScreenGui.Enabled or UIRefs.WindowState.state == "maximized" or UIRefs.WindowState.resizing then return end
+    if RuntimeDiagnostics.Dragging or not UIRefs.ScreenGui.Enabled
+        or UIRefs.WindowState.state == "maximized" or UIRefs.WindowState.resizing then return end
     local inputType = input.UserInputType
     if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then return end
 
@@ -1512,8 +1513,8 @@ RuntimeDiagnostics.BeginMainWindowDrag = function(input)
     if hitTestOk then
         for _, object in ipairs(hitObjects) do
             if object ~= UIRefs.MainFrame and object:IsDescendantOf(UIRefs.MainFrame) then
-                if object:IsA("GuiButton") or object:IsA("TextBox") or object:IsA("ScrollingFrame")
-                    or object.Active then return end
+                if object:IsA("GuiButton") or object:IsA("TextBox")
+                    or (object.Active and not object:IsA("ScrollingFrame")) then return end
             end
         end
     end
