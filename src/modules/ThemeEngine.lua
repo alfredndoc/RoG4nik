@@ -242,25 +242,18 @@ local function parseAppearanceRgb(value, fallback)
     )
 end
 
-local function parseAppearanceRgb(value, fallback)
-    local red, green, blue = tostring(value or ""):match("^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$")
-    if not red then return fallback end
-    return Color3.fromRGB(
-        math.clamp(tonumber(red), 0, 255),
-        math.clamp(tonumber(green), 0, 255),
-        math.clamp(tonumber(blue), 0, 255)
-    )
-end
-
 local function resolvedAppearance()
+    if ThemeAppearance._ResolvedCache then return ThemeAppearance._ResolvedCache end
+
+    local appearance
     if ThemeAppearance.Simple then
-        return {
+        appearance = {
             Glass = true, Transparency = 0.08, Gloss = 0.55, Gradient = false,
             GradientRotation = 90, GradientStrength = 0,
             GradientStart = Color3.new(1, 1, 1), GradientEnd = Color3.fromRGB(224, 228, 240),
         }
     elseif ThemeAppearance.Advanced then
-        return {
+        appearance = {
             Glass = ThemeAppearance.Glass == true,
             Transparency = ThemeAppearance.Glass and math.clamp(tonumber(ThemeAppearance.Transparency) or 0.1, 0, 1) or 0,
             Gloss = ThemeAppearance.Glass and math.clamp(tonumber(ThemeAppearance.Gloss) or 0.35, 0, 1) or 0,
@@ -270,8 +263,11 @@ local function resolvedAppearance()
             GradientStart = parseAppearanceRgb(ThemeAppearance.GradientStartRGB, Color3.new(1, 1, 1)),
             GradientEnd = parseAppearanceRgb(ThemeAppearance.GradientEndRGB, Color3.fromRGB(224, 228, 240)),
         }
+    else
+        appearance = { Glass = false, Transparency = 0, Gloss = 0, Gradient = false }
     end
-    return { Glass = false, Transparency = 0, Gloss = 0, Gradient = false }
+    ThemeAppearance._ResolvedCache = appearance
+    return appearance
 end
 
 local function updateGlassEdge(obj, appearance)
@@ -359,6 +355,7 @@ function ThemeEngine.setAppearanceSettings(settings)
     ThemeAppearance.GradientStrength = math.clamp(tonumber(settings.GradientStrength) or 0.18, 0, 1)
     ThemeAppearance.GradientStartRGB = tostring(settings.GradientStartRGB or "255, 255, 255")
     ThemeAppearance.GradientEndRGB = tostring(settings.GradientEndRGB or "224, 228, 240")
+    ThemeAppearance._ResolvedCache = nil
     if not wasAppearanceEnabled and not ThemeAppearance.Simple and not ThemeAppearance.Advanced then return end
     local appearance = resolvedAppearance()
     for obj in pairs(ThemeRoleRegistry) do
@@ -538,9 +535,23 @@ local function setTheme(name)
     local oldAccentHover = oldTheme.AccentHover or oldAccent
     local newAccent = newThemeSnapshot.Accent or Theme.Accent
     local newAccentHover = newThemeSnapshot.AccentHover or newAccent
+    local useOverlayOnly = #changes > 48
+    local batchSize = useOverlayOnly and math.clamp(math.ceil(#changes / 30), 12, 32) or #changes
+    local transitionDuration = useOverlayOnly
+        and math.max(0.9, math.ceil(#changes / batchSize) / 30 + 0.4)
+        or 0.9
+    local overlayChangesApplied = not useOverlayOnly
+    local transitionTweenCompleted = false
+    local transitionFinished = false
 
     local function finishThemeTransition(colorsAlreadyApplied)
-        if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
+        if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
+        if useOverlayOnly and not overlayChangesApplied then
+            transitionTweenCompleted = true
+            if overlay and overlay.Parent then overlay.BackgroundTransparency = 0.35 end
+            return
+        end
+        transitionFinished = true
         if not colorsAlreadyApplied then
             for _, change in ipairs(changes) do
                 if change.object and change.object.Parent then
@@ -598,20 +609,12 @@ local function setTheme(name)
 
     if overlay and overlay.Parent then overlay.Visible = true end
 
-    -- Large interfaces can have hundreds of registered color properties. Updating
-    -- every property on every animation frame stalls the render thread. Apply those
-    -- colors once, then animate the lightweight full-window wash for a smooth
-    -- transition. Small changes retain the precise per-property interpolation.
-    local useOverlayOnly = #changes > 48
+    -- Large interfaces use a light wash while colors are applied in small batches
+    -- across frames, avoiding both per-frame color tweens and a single write spike.
     if useOverlayOnly then
-        for _, change in ipairs(changes) do
-            if change.object and change.object.Parent then
-                pcall(function() change.object[change.property] = change.to end)
-            end
-        end
         if overlay and overlay.Parent then
             overlay.BackgroundColor3 = overlayStartBg
-            overlay.BackgroundTransparency = 0.62
+            overlay.BackgroundTransparency = 0.35
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -646,7 +649,7 @@ local function setTheme(name)
             overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
             -- A subtle wash gives the transition a cohesive gradient feel without
             -- hiding the UI or blocking input.
-            overlay.BackgroundTransparency = (useOverlayOnly and 0.62 or 0.965) + ((useOverlayOnly and 0.38 or 0.035) * alpha)
+            overlay.BackgroundTransparency = (useOverlayOnly and 0.35 or 0.965) + ((useOverlayOnly and 0.65 or 0.035) * alpha)
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -662,7 +665,7 @@ local function setTheme(name)
     end)
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
-        TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+        TweenInfo.new(transitionDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
         { Value = 1 }
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
@@ -671,6 +674,40 @@ local function setTheme(name)
         end
     end)
     RuntimeDiagnostics.ActiveThemeTween:Play()
+
+    if useOverlayOnly then
+        task.spawn(function()
+            for firstIndex = 1, #changes, batchSize do
+                if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
+                local lastIndex = math.min(firstIndex + batchSize - 1, #changes)
+                for index = firstIndex, lastIndex do
+                    local change = changes[index]
+                    if change.object and change.object.Parent then
+                        pcall(function() change.object[change.property] = change.to end)
+                    end
+                end
+                if lastIndex < #changes then task.wait() end
+            end
+            if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
+            overlayChangesApplied = true
+            if transitionTweenCompleted then
+                if overlay and overlay.Parent then
+                    local settleTween = TweenService:Create(
+                        overlay,
+                        TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+                        { BackgroundTransparency = 1 }
+                    )
+                    RuntimeDiagnostics.ActiveThemeTween = settleTween
+                    settleTween.Completed:Connect(function(playbackState)
+                        if playbackState == Enum.PlaybackState.Completed then finishThemeTransition(true) end
+                    end)
+                    settleTween:Play()
+                else
+                    finishThemeTransition(true)
+                end
+            end
+        end)
+    end
     return true
 end
 
