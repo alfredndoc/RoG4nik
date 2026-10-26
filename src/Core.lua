@@ -1494,17 +1494,42 @@ RuntimeDiagnostics.GetPointerPosition = function(input)
     return UIRefs.UserInputService:GetMouseLocation()
 end
 
-UIRefs.TitleGroup.InputBegan:Connect(function(input)
+RuntimeDiagnostics.BeginMainWindowDrag = function(input)
     if not UIRefs.ScreenGui.Enabled or UIRefs.WindowState.state == "maximized" or UIRefs.WindowState.resizing then return end
-    local it = input.UserInputType
-    if it ~= Enum.UserInputType.MouseButton1 and it ~= Enum.UserInputType.Touch then return end
-    RuntimeDiagnostics.DragStartPointer = RuntimeDiagnostics.GetPointerPosition(input)
-    RuntimeDiagnostics.DragStartAbsolute = UIRefs.MainFrame.AbsolutePosition
+    local inputType = input.UserInputType
+    if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then return end
+
+    local pointer = RuntimeDiagnostics.GetPointerPosition(input)
+    local framePosition = UIRefs.MainFrame.AbsolutePosition
+    local frameSize = UIRefs.MainFrame.AbsoluteSize
+    if pointer.X < framePosition.X or pointer.Y < framePosition.Y
+        or pointer.X > framePosition.X + frameSize.X or pointer.Y > framePosition.Y + frameSize.Y then return end
+
+    -- Let controls keep their normal click, text, scroll, and resize behavior.
+    local hitTestOk, hitObjects = pcall(function()
+        return playerGui:GetGuiObjectsAtPosition(pointer.X, pointer.Y)
+    end)
+    if hitTestOk then
+        for _, object in ipairs(hitObjects) do
+            if object ~= UIRefs.MainFrame and object:IsDescendantOf(UIRefs.MainFrame) then
+                if object:IsA("GuiButton") or object:IsA("TextBox") or object:IsA("ScrollingFrame")
+                    or object.Active then return end
+            end
+        end
+    end
+
+    RuntimeDiagnostics.DragStartPointer = pointer
+    RuntimeDiagnostics.DragStartAbsolute = framePosition
     RuntimeDiagnostics.DragStartPosition = UIRefs.MainFrame.Position
     RuntimeDiagnostics.DragTargetPos = UIRefs.MainFrame.Position
     RuntimeDiagnostics.Dragging = true
-    RuntimeDiagnostics.DragPointerType = it
-end)
+    RuntimeDiagnostics.DragPointerType = inputType
+end
+
+-- Keep the title bar as the obvious grab area, while allowing the rest of the
+-- window's non-interactive surface to move it as well.
+UIRefs.TitleGroup.InputBegan:Connect(RuntimeDiagnostics.BeginMainWindowDrag)
+UIRefs.UserInputService.InputBegan:Connect(RuntimeDiagnostics.BeginMainWindowDrag)
 
 UIRefs.UserInputService.InputChanged:Connect(function(input)
     if not UIRefs.ScreenGui.Enabled then return end

@@ -53,6 +53,8 @@ local MODULES = {
 --============================================================
 local Loader = { Completed = 0, Total = 1 + #MODULES }
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local LoaderThemes = {
     Dark = { Background = {30,30,36}, Sidebar = {35,35,43}, Panel = {43,43,54}, Border = {67,67,81}, Accent = {78,111,255}, AccentSoft = {43,53,91}, Text = {245,245,250}, Muted = {164,164,179} },
     White = { Background = {248,248,250}, Sidebar = {240,240,244}, Panel = {254,254,255}, Border = {210,210,218}, Accent = {78,111,255}, AccentSoft = {224,232,255}, Text = {25,25,35}, Muted = {90,90,105} },
@@ -203,8 +205,94 @@ local function setLoaderStatus(message, progress, detail)
     end
 end
 
+Loader.Dragging = false
+Loader.DragPointerType = nil
+Loader.DragStartPointer = Vector2.new(0, 0)
+Loader.DragStartAbsolute = Vector2.new(0, 0)
+Loader.DragStartPosition = Loader.Window.Position
+Loader.DragTargetPosition = Loader.Window.Position
+Loader.DragConnections = {}
+
+local function loaderPointerPosition(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        return Vector2.new(input.Position.X, input.Position.Y)
+    end
+    return UserInputService:GetMouseLocation()
+end
+
+table.insert(Loader.DragConnections, UserInputService.InputBegan:Connect(function(input)
+    if not Loader.Gui or not Loader.Gui.Parent or not Loader.Window.Visible then return end
+    local inputType = input.UserInputType
+    if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then return end
+
+    local pointer = loaderPointerPosition(input)
+    local windowPosition = Loader.Window.AbsolutePosition
+    local windowSize = Loader.Window.AbsoluteSize
+    if pointer.X < windowPosition.X or pointer.Y < windowPosition.Y
+        or pointer.X > windowPosition.X + windowSize.X or pointer.Y > windowPosition.Y + windowSize.Y then return end
+
+    Loader.DragStartPointer = pointer
+    Loader.DragStartAbsolute = windowPosition
+    Loader.DragStartPosition = Loader.Window.Position
+    Loader.DragTargetPosition = Loader.Window.Position
+    Loader.DragPointerType = inputType
+    Loader.Dragging = true
+end))
+
+table.insert(Loader.DragConnections, UserInputService.InputChanged:Connect(function(input)
+    if not Loader.Dragging or not Loader.Gui or not Loader.Gui.Parent then return end
+    local inputType = input.UserInputType
+    local isMouseMove = inputType == Enum.UserInputType.MouseMovement
+    local isTouchMove = inputType == Enum.UserInputType.Touch
+    if not isMouseMove and not isTouchMove then return end
+    local matchesPointer = (Loader.DragPointerType == Enum.UserInputType.MouseButton1 and isMouseMove)
+        or (Loader.DragPointerType == Enum.UserInputType.Touch and isTouchMove)
+    if not matchesPointer then return end
+
+    local pointer = loaderPointerPosition(input)
+    local delta = pointer - Loader.DragStartPointer
+    local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(0, 0)
+    local windowSize = Loader.Window.AbsoluteSize
+    local startAbsolute = Loader.DragStartAbsolute
+    local targetX = math.clamp(startAbsolute.X + delta.X, 0, math.max(0, viewport.X - windowSize.X))
+    local targetY = math.clamp(startAbsolute.Y + delta.Y, 0, math.max(0, viewport.Y - windowSize.Y))
+    local startPosition = Loader.DragStartPosition
+    Loader.DragTargetPosition = UDim2.new(
+        startPosition.X.Scale, startPosition.X.Offset + targetX - startAbsolute.X,
+        startPosition.Y.Scale, startPosition.Y.Offset + targetY - startAbsolute.Y
+    )
+end))
+
+table.insert(Loader.DragConnections, UserInputService.InputEnded:Connect(function(input)
+    local inputType = input.UserInputType
+    if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+        if Loader.Dragging and Loader.Window and Loader.Window.Parent then
+            Loader.Window.Position = Loader.DragTargetPosition
+        end
+        Loader.Dragging = false
+        Loader.DragPointerType = nil
+    end
+end))
+
+table.insert(Loader.DragConnections, RunService.RenderStepped:Connect(function(dt)
+    if Loader.Dragging and Loader.Window and Loader.Window.Parent then
+        local alpha = math.min(dt * 15, 1)
+        Loader.Window.Position = Loader.Window.Position:Lerp(Loader.DragTargetPosition, alpha)
+    end
+end))
+
+local function disconnectLoaderDragging()
+    Loader.Dragging = false
+    Loader.DragPointerType = nil
+    for _, connection in ipairs(Loader.DragConnections) do
+        connection:Disconnect()
+    end
+    table.clear(Loader.DragConnections)
+end
+
 local function dismissLoader()
     if not Loader.Gui or not Loader.Gui.Parent then return end
+    disconnectLoaderDragging()
     for _, item in ipairs(Loader.Gui:GetDescendants()) do
         local goals = {}
         if item:IsA("GuiObject") then goals.BackgroundTransparency = 1 end
@@ -213,7 +301,11 @@ local function dismissLoader()
         if item:IsA("UIStroke") then goals.Transparency = 1 end
         if next(goals) then loaderTween(item, 0.22, goals, Enum.EasingStyle.Sine, Enum.EasingDirection.In) end
     end
-    loaderTween(Loader.Window, 0.22, { Position = UDim2.fromScale(0.5, 0.48) }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+    local currentPosition = Loader.Window.Position
+    loaderTween(Loader.Window, 0.22, {
+        Position = UDim2.new(currentPosition.X.Scale, currentPosition.X.Offset,
+            currentPosition.Y.Scale, currentPosition.Y.Offset - 12),
+    }, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
     task.wait(0.24)
     if Loader.Gui and Loader.Gui.Parent then Loader.Gui:Destroy() end
 end
