@@ -537,9 +537,6 @@ local function setTheme(name)
     local newAccentHover = newThemeSnapshot.AccentHover or newAccent
     local useOverlayOnly = #changes > 48
     local batchSize = useOverlayOnly and math.clamp(math.ceil(#changes / 30), 12, 32) or #changes
-    local transitionDuration = useOverlayOnly
-        and math.max(0.9, math.ceil(#changes / batchSize) / 30 + 0.4)
-        or 0.9
     local overlayChangesApplied = not useOverlayOnly
     local transitionTweenCompleted = false
     local transitionFinished = false
@@ -548,7 +545,7 @@ local function setTheme(name)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
         if useOverlayOnly and not overlayChangesApplied then
             transitionTweenCompleted = true
-            if overlay and overlay.Parent then overlay.BackgroundTransparency = 0.35 end
+            if overlay and overlay.Parent then overlay.BackgroundTransparency = 0.62 end
             return
         end
         transitionFinished = true
@@ -614,7 +611,7 @@ local function setTheme(name)
     if useOverlayOnly then
         if overlay and overlay.Parent then
             overlay.BackgroundColor3 = overlayStartBg
-            overlay.BackgroundTransparency = 0.35
+            overlay.BackgroundTransparency = 0.62
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -649,7 +646,7 @@ local function setTheme(name)
             overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
             -- A subtle wash gives the transition a cohesive gradient feel without
             -- hiding the UI or blocking input.
-            overlay.BackgroundTransparency = (useOverlayOnly and 0.35 or 0.965) + ((useOverlayOnly and 0.65 or 0.035) * alpha)
+            overlay.BackgroundTransparency = (useOverlayOnly and 0.62 or 0.965) + ((useOverlayOnly and 0.38 or 0.035) * alpha)
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -665,7 +662,7 @@ local function setTheme(name)
     end)
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
-        TweenInfo.new(transitionDuration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+        TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
         { Value = 1 }
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
