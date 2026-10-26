@@ -1494,7 +1494,7 @@ RuntimeDiagnostics.GetPointerPosition = function(input)
     return UIRefs.UserInputService:GetMouseLocation()
 end
 
-RuntimeDiagnostics.BeginMainWindowDrag = function(input)
+RuntimeDiagnostics.BeginMainWindowDrag = function(input, fromTitleRegion)
     if RuntimeDiagnostics.Dragging or not UIRefs.ScreenGui.Enabled
         or UIRefs.WindowState.state == "maximized" or UIRefs.WindowState.resizing then return end
     local inputType = input.UserInputType
@@ -1506,16 +1506,24 @@ RuntimeDiagnostics.BeginMainWindowDrag = function(input)
     if pointer.X < framePosition.X or pointer.Y < framePosition.Y
         or pointer.X > framePosition.X + frameSize.X or pointer.Y > framePosition.Y + frameSize.Y then return end
 
-    -- Let controls keep their normal click, text, scroll, and resize behavior.
-    local hitTestOk, hitObjects = pcall(function()
-        return playerGui:GetGuiObjectsAtPosition(pointer.X, pointer.Y)
-    end)
-    if hitTestOk then
-        for _, object in ipairs(hitObjects) do
-            if object ~= UIRefs.MainFrame and object:IsDescendantOf(UIRefs.MainFrame) then
-                if object:IsA("GuiButton") or object:IsA("TextBox")
-                    or (object.Active and not object:IsA("ScrollingFrame")
-                        and object ~= UIRefs.TitleGroup and object ~= UIRefs.IntroOverlay) then return end
+    -- Only preserve controls that need a continuous gesture. Buttons can still
+    -- click normally; a drag begins only after the pointer moves past its slop.
+    if not fromTitleRegion then
+        local hitTestOk, hitObjects = pcall(function()
+            return playerGui:GetGuiObjectsAtPosition(pointer.X, pointer.Y)
+        end)
+        if hitTestOk then
+            for _, object in ipairs(hitObjects) do
+                if object ~= UIRefs.MainFrame and object:IsDescendantOf(UIRefs.MainFrame) then
+                    local protectedControl = object:IsA("TextBox") or object == UIRefs.DividerHitbox
+                    local protectedGesture = object.Active
+                        and not object:IsA("ScrollingFrame")
+                        and not object:IsA("GuiButton")
+                        and object ~= UIRefs.TitleGroup
+                        and object ~= UIRefs.IntroOverlay
+                        and object ~= UIRefs.InputBar
+                    if protectedControl or protectedGesture then return end
+                end
             end
         end
     end
@@ -1528,9 +1536,11 @@ RuntimeDiagnostics.BeginMainWindowDrag = function(input)
     RuntimeDiagnostics.DragPointerType = inputType
 end
 
--- Keep the title bar as the obvious grab area, while allowing the rest of the
--- window's non-interactive surface to move it as well.
-UIRefs.TitleGroup.InputBegan:Connect(RuntimeDiagnostics.BeginMainWindowDrag)
+-- The title region bypasses surface hit-testing; the global path covers the
+-- rest of the window while leaving text entry and resize gestures intact.
+UIRefs.TitleGroup.InputBegan:Connect(function(input)
+    RuntimeDiagnostics.BeginMainWindowDrag(input, true)
+end)
 UIRefs.UserInputService.InputBegan:Connect(RuntimeDiagnostics.BeginMainWindowDrag)
 
 UIRefs.UserInputService.InputChanged:Connect(function(input)
@@ -1545,6 +1555,7 @@ UIRefs.UserInputService.InputChanged:Connect(function(input)
     local matching = (RuntimeDiagnostics.DragPointerType == Enum.UserInputType.MouseButton1 and isMove) or (RuntimeDiagnostics.DragPointerType == Enum.UserInputType.Touch and isTouchMove)
     if not matching then return end
     local delta = pointer - RuntimeDiagnostics.DragStartPointer
+    if delta.Magnitude < 6 then return end
     local vp = viewportSize()
     local frameSize = UIRefs.MainFrame.AbsoluteSize
     local startAbsolute = RuntimeDiagnostics.DragStartAbsolute
