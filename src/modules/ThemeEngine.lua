@@ -79,6 +79,7 @@ end
 --============================================================
 local themeKeyForColor
 local ThemeRoleRegistry = setmetatable({}, { __mode = "k" })
+local ThemeGradientRoleRegistry = setmetatable({}, { __mode = "k" })
 local ThemeBaseTransparency = setmetatable({}, { __mode = "k" })
 local ThemeStrokeBase = setmetatable({}, { __mode = "k" })
 local ThemeAppearance = {
@@ -95,7 +96,7 @@ local function applyAppearanceToObject(obj) end
 local ThemeColorProperties = {
     BackgroundColor3 = true, TextColor3 = true, ImageColor3 = true, Color = true,
     PlaceholderColor3 = true, ScrollBarImageColor3 = true, BorderColor3 = true,
-    TextStrokeColor3 = true,
+    TextStrokeColor3 = true, SelectionColor3 = true, Ambient = true, LightColor = true,
 }
 
 local function create(className, props, parent)
@@ -115,6 +116,19 @@ local function create(className, props, parent)
         end
     end
     if next(roles) then ThemeRoleRegistry[inst] = roles end
+    if inst:IsA("UIGradient") and props and typeof(props.Color) == "ColorSequence" and themeKeyForColor then
+        local gradientRoles = {}
+        for index, keypoint in ipairs(props.Color.Keypoints) do
+            local role = themeKeyForColor(keypoint.Value, "Color", Theme)
+            if role then gradientRoles[index] = role end
+        end
+        if next(gradientRoles) then
+            ThemeGradientRoleRegistry[inst] = {
+                roles = gradientRoles,
+                keypointCount = #props.Color.Keypoints,
+            }
+        end
+    end
     if inst:IsA("GuiObject") then
         ThemeBaseTransparency[inst] = inst.BackgroundTransparency
     elseif inst:IsA("UIStroke") then
@@ -125,10 +139,44 @@ local function create(className, props, parent)
     return inst
 end
 
+local ActiveColorTweens = setmetatable({}, { __mode = "k" })
+
+local function removeTrackedColorTween(instance, record)
+    local records = ActiveColorTweens[instance]
+    if not records then return end
+    for index = #records, 1, -1 do
+        if records[index] == record then
+            table.remove(records, index)
+            break
+        end
+    end
+    if #records == 0 then ActiveColorTweens[instance] = nil end
+end
+
+local function trackColorTween(instance, anim, goals)
+    local properties = {}
+    for property in pairs(goals) do
+        if ThemeColorProperties[property] then properties[property] = true end
+    end
+    if not next(properties) then return end
+
+    local record = { tween = anim, properties = properties }
+    local records = ActiveColorTweens[instance]
+    if not records then
+        records = {}
+        ActiveColorTweens[instance] = records
+    end
+    records[#records + 1] = record
+    anim.Completed:Connect(function()
+        removeTrackedColorTween(instance, record)
+    end)
+end
+
 local function tween(instance, goals, duration, style, direction)
     if not instance or not instance.Parent then return end
     local info = TweenInfo.new(duration or 0.18, style or Enum.EasingStyle.Quint, direction or Enum.EasingDirection.Out)
     local anim = TweenService:Create(instance, info, goals)
+    trackColorTween(instance, anim, goals)
     anim:Play()
     return anim
 end
@@ -391,7 +439,10 @@ local THEME_KEY_PRIORITY = {
     ScrollBarImageColor3 = { "Border", "MutedText", "QuietText" },
     BorderColor3 = { "Border", "Accent", "Danger" },
     TextStrokeColor3 = { "Border", "Accent", "Danger", "PrimaryText", "White" },
-    Color = { "Accent", "AccentHover", "Border", "Danger", "MutedText", "QuietText", "PrimaryText", "White" },
+    Color = { "Accent", "AccentHover", "AccentSoft", "Border", "Danger", "MutedText", "QuietText", "PrimaryText", "White" },
+    SelectionColor3 = { "Accent", "AccentHover", "AccentSoft" },
+    Ambient = { "Background", "Sidebar", "Panel", "PanelRaised", "RightBg" },
+    LightColor = { "PrimaryText", "White", "Accent", "AccentHover" },
 }
 
 -- Preset keys are stable, so build the deterministic fallback order once rather
@@ -466,6 +517,53 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
         end
     end
 
+    local function collectGradient(obj)
+        local current = obj.Color
+        if typeof(current) ~= "ColorSequence" then return end
+
+        local keypoints = current.Keypoints
+        local registered = ThemeGradientRoleRegistry[obj]
+        local registeredRoles = registered and registered.roles
+        local nextRoles = {}
+        local targets = {}
+        local changed = false
+
+        for index, keypoint in ipairs(keypoints) do
+            local role = registeredRoles and registeredRoles[index]
+            local currentRole = themeKeyForColor(keypoint.Value, "Color", oldTheme)
+            if role and oldTheme[role] ~= keypoint.Value then
+                if currentRole then
+                    role = currentRole
+                elseif not preserveInFlightRoles then
+                    role = nil
+                end
+            end
+            if not role then role = currentRole end
+
+            local targetColor = keypoint.Value
+            if role and newTheme[role] then
+                nextRoles[index] = role
+                targetColor = newTheme[role]
+                if targetColor ~= keypoint.Value then changed = true end
+            end
+            targets[index] = ColorSequenceKeypoint.new(keypoint.Time, targetColor)
+        end
+
+        if next(nextRoles) then
+            ThemeGradientRoleRegistry[obj] = { roles = nextRoles, keypointCount = #keypoints }
+            if changed then
+                changes[#changes + 1] = {
+                    object = obj,
+                    property = "Color",
+                    from = current,
+                    to = ColorSequence.new(targets),
+                }
+            end
+        else
+            ThemeGradientRoleRegistry[obj] = nil
+        end
+    end
+
     for _, obj in ipairs(root:GetDescendants()) do
         if obj:IsA("GuiObject") then
             collectProperty(obj, "BackgroundColor3")
@@ -476,20 +574,64 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
             end
             if obj:IsA("TextBox") then
                 collectProperty(obj, "PlaceholderColor3")
+                collectProperty(obj, "SelectionColor3")
             end
             if obj:IsA("ImageLabel") or obj:IsA("ImageButton") or obj:IsA("ViewportFrame") then
                 collectProperty(obj, "ImageColor3")
+            end
+            if obj:IsA("ViewportFrame") then
+                collectProperty(obj, "Ambient")
+                collectProperty(obj, "LightColor")
             end
             if obj:IsA("ScrollingFrame") then
                 collectProperty(obj, "ScrollBarImageColor3")
             end
         elseif obj:IsA("UIStroke") then
             collectProperty(obj, "Color")
+        elseif obj:IsA("UIGradient") then
+            collectGradient(obj)
         end
     end
     return changes, misses
 end
 
+local function cancelThemeColorTweens(changes)
+    local toCancel = {}
+    for _, change in ipairs(changes) do
+        local records = ActiveColorTweens[change.object]
+        if records then
+            for _, record in ipairs(records) do
+                if record.properties[change.property] then
+                    toCancel[record.tween] = true
+                end
+            end
+        end
+    end
+    for activeTween in pairs(toCancel) do
+        pcall(function() activeTween:Cancel() end)
+    end
+end
+
+local function interpolateThemeValue(from, to, alpha)
+    local valueType = typeof(from)
+    if valueType == "Color3" and typeof(to) == "Color3" then
+        return from:Lerp(to, alpha)
+    end
+    if valueType == "ColorSequence" and typeof(to) == "ColorSequence" then
+        local fromPoints, toPoints = from.Keypoints, to.Keypoints
+        if #fromPoints ~= #toPoints then
+            return alpha >= 1 and to or from
+        end
+        local keypoints = table.create(#fromPoints)
+        for index, fromPoint in ipairs(fromPoints) do
+            local toPoint = toPoints[index]
+            local time = fromPoint.Time + ((toPoint.Time - fromPoint.Time) * alpha)
+            keypoints[index] = ColorSequenceKeypoint.new(time, fromPoint.Value:Lerp(toPoint.Value, alpha))
+        end
+        return ColorSequence.new(keypoints)
+    end
+    return alpha >= 1 and to or from
+end
 
 local function setTheme(name)
     if not Themes[name] then
@@ -555,20 +697,13 @@ local function setTheme(name)
     end
 
     local changes, misses = collectThemeChanges(root, oldTheme, newThemeSnapshot, preserveInFlightRoles)
+    cancelThemeColorTweens(changes)
     local overlay = RuntimeDiagnostics.ThemeTransitionOverlay
-    local overlayStartBg = overlay and overlay.BackgroundColor3 or oldTheme.Background
-    local overlayGoalBg = newThemeSnapshot.Background or Theme.Background
-    local overlayGradient = overlay and overlay:FindFirstChildOfClass("UIGradient")
-    local oldAccent = oldTheme.Accent or Theme.Accent
-    local oldAccentHover = oldTheme.AccentHover or oldAccent
-    local newAccent = newThemeSnapshot.Accent or Theme.Accent
-    local newAccentHover = newThemeSnapshot.AccentHover or newAccent
     local transitionDuration = preserveInFlightRoles and 0.28 or 0.42
     local changeGroups, changesByObject = {}, {}
     for _, change in ipairs(changes) do
         local object = change.object
-        if object and object.Parent
-            and not (object == overlay and change.property == "BackgroundColor3") then
+        if object and object.Parent then
             local group = changesByObject[object]
             if not group then
                 group = { object = object, changes = {} }
@@ -584,9 +719,7 @@ local function setTheme(name)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
         transitionFinished = true
         if overlay and overlay.Parent then
-            overlay.BackgroundTransparency = 1
-            -- Hide the transition surface explicitly. UIGradient transparency can
-            -- still render independently of the frame's BackgroundTransparency.
+            -- Progress reaches full transparency before the transition surface is hidden.
             overlay.Visible = false
         end
 
@@ -639,21 +772,13 @@ local function setTheme(name)
             local object = group.object
             if object and object.Parent then
                 for _, change in ipairs(group.changes) do
-                    object[change.property] = change.from:Lerp(change.to, alpha)
+                    object[change.property] = interpolateThemeValue(change.from, change.to, alpha)
                 end
             end
         end
         if overlay and overlay.Parent then
-            overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
-            -- Keep the same subtle wash while controls transition in parallel.
+            -- Keep the subtle wash synchronized with the same shared progress value.
             overlay.BackgroundTransparency = 0.965 + (0.035 * alpha)
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, oldAccent:Lerp(newAccent, alpha)),
-                ColorSequenceKeypoint.new(0.5, oldAccentHover:Lerp(newAccentHover, alpha)),
-                ColorSequenceKeypoint.new(1, oldAccent:Lerp(newAccent, alpha)),
-            })
         end
     end
 
