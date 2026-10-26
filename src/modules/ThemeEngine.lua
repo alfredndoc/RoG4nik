@@ -19,6 +19,7 @@ local RuntimeDiagnostics = {
     ActiveThemeTween = nil,
     ActiveThemeConnection = nil,
     ActiveThemeProgress = nil,
+    ActiveThemeObjectTweens = nil,
 }
 ThemeEngine.RuntimeDiagnostics = RuntimeDiagnostics
 
@@ -511,8 +512,16 @@ local function setTheme(name)
 
     -- Cancel the previous animation cleanly. An interrupted transition starts from
     -- the actual on-screen colors, not from a stale theme snapshot.
+    local activeObjectTweens = RuntimeDiagnostics.ActiveThemeObjectTweens
     local preserveInFlightRoles = RuntimeDiagnostics.ActiveThemeTween ~= nil
         or RuntimeDiagnostics.ActiveThemeConnection ~= nil
+        or (activeObjectTweens ~= nil and #activeObjectTweens > 0)
+    if activeObjectTweens then
+        for _, objectTween in ipairs(activeObjectTweens) do
+            pcall(function() objectTween:Cancel() end)
+        end
+        RuntimeDiagnostics.ActiveThemeObjectTweens = nil
+    end
     if RuntimeDiagnostics.ActiveThemeTween then
         pcall(function() RuntimeDiagnostics.ActiveThemeTween:Cancel() end)
         RuntimeDiagnostics.ActiveThemeTween = nil
@@ -535,27 +544,11 @@ local function setTheme(name)
     local oldAccentHover = oldTheme.AccentHover or oldAccent
     local newAccent = newThemeSnapshot.Accent or Theme.Accent
     local newAccentHover = newThemeSnapshot.AccentHover or newAccent
-    local useOverlayOnly = #changes > 48
-    local batchSize = useOverlayOnly and math.clamp(math.ceil(#changes / 30), 12, 32) or #changes
-    local overlayChangesApplied = not useOverlayOnly
-    local transitionTweenCompleted = false
     local transitionFinished = false
 
-    local function finishThemeTransition(colorsAlreadyApplied)
+    local function finishThemeTransition()
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
-        if useOverlayOnly and not overlayChangesApplied then
-            transitionTweenCompleted = true
-            if overlay and overlay.Parent then overlay.BackgroundTransparency = 0.62 end
-            return
-        end
         transitionFinished = true
-        if not colorsAlreadyApplied then
-            for _, change in ipairs(changes) do
-                if change.object and change.object.Parent then
-                    pcall(function() change.object[change.property] = change.to end)
-                end
-            end
-        end
         if overlay and overlay.Parent then
             overlay.BackgroundTransparency = 1
             overlay.BackgroundColor3 = overlayGoalBg
@@ -597,6 +590,7 @@ local function setTheme(name)
             RuntimeDiagnostics.ActiveThemeProgress = nil
         end
         RuntimeDiagnostics.ActiveThemeTween = nil
+        RuntimeDiagnostics.ActiveThemeObjectTweens = nil
     end
 
     if #changes == 0 then
@@ -606,25 +600,9 @@ local function setTheme(name)
 
     if overlay and overlay.Parent then overlay.Visible = true end
 
-    -- Large interfaces use a light wash while colors are applied in small batches
-    -- across frames, avoiding both per-frame color tweens and a single write spike.
-    if useOverlayOnly then
-        if overlay and overlay.Parent then
-            overlay.BackgroundColor3 = overlayStartBg
-            overlay.BackgroundTransparency = 0.62
-        end
-        if overlayGradient then
-            overlayGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, oldAccent),
-                ColorSequenceKeypoint.new(0.5, oldAccentHover),
-                ColorSequenceKeypoint.new(1, oldAccent),
-            })
-        end
-    end
-
-    -- One shared progress tween drives every affected color. This avoids creating
-    -- hundreds of individual property tweens and ensures the entire UI transitions
-    -- together instead of changing control-by-control.
+    -- Group color goals by instance and start one native tween per instance. The
+    -- engine interpolates all affected controls together without a Lua loop on every
+    -- frame or batches that visibly switch the interface in pieces.
     local progress = Instance.new("NumberValue")
     progress.Name = "ThemeTransitionProgress"
     progress.Value = 0
@@ -632,21 +610,10 @@ local function setTheme(name)
 
     local function applyProgress(alpha)
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-        if not useOverlayOnly then
-            for _, change in ipairs(changes) do
-                local obj = change.object
-                if obj and obj.Parent then
-                    pcall(function()
-                        obj[change.property] = change.from:Lerp(change.to, alpha)
-                    end)
-                end
-            end
-        end
         if overlay and overlay.Parent then
             overlay.BackgroundColor3 = overlayStartBg:Lerp(overlayGoalBg, alpha)
-            -- A subtle wash gives the transition a cohesive gradient feel without
-            -- hiding the UI or blocking input.
-            overlay.BackgroundTransparency = (useOverlayOnly and 0.62 or 0.965) + ((useOverlayOnly and 0.38 or 0.035) * alpha)
+            -- Keep the same subtle wash while controls transition in parallel.
+            overlay.BackgroundTransparency = 0.965 + (0.035 * alpha)
         end
         if overlayGradient then
             overlayGradient.Color = ColorSequence.new({
@@ -660,6 +627,40 @@ local function setTheme(name)
     RuntimeDiagnostics.ActiveThemeConnection = progress:GetPropertyChangedSignal("Value"):Connect(function()
         applyProgress(progress.Value)
     end)
+
+    local changesByObject = {}
+    for _, change in ipairs(changes) do
+        local object = change.object
+        if object and object.Parent
+            and not (object == overlay and change.property == "BackgroundColor3") then
+            local goals = changesByObject[object]
+            if not goals then
+                goals = {}
+                changesByObject[object] = goals
+            end
+            goals[change.property] = change.to
+        end
+    end
+
+    local activeObjectTweens = {}
+    local objectTweenInfo = TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+    for object, goals in pairs(changesByObject) do
+        if object.Parent then
+            local ok, objectTween = pcall(function()
+                return TweenService:Create(object, objectTweenInfo, goals)
+            end)
+            if ok and objectTween then
+                activeObjectTweens[#activeObjectTweens + 1] = objectTween
+                objectTween:Play()
+            else
+                for property, target in pairs(goals) do
+                    pcall(function() object[property] = target end)
+                end
+            end
+        end
+    end
+    RuntimeDiagnostics.ActiveThemeObjectTweens = activeObjectTweens
+
     RuntimeDiagnostics.ActiveThemeTween = TweenService:Create(
         progress,
         TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
@@ -667,44 +668,10 @@ local function setTheme(name)
     )
     RuntimeDiagnostics.ActiveThemeTween.Completed:Connect(function(playbackState)
         if playbackState == Enum.PlaybackState.Completed then
-            finishThemeTransition(useOverlayOnly)
+            finishThemeTransition()
         end
     end)
     RuntimeDiagnostics.ActiveThemeTween:Play()
-
-    if useOverlayOnly then
-        task.spawn(function()
-            for firstIndex = 1, #changes, batchSize do
-                if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-                local lastIndex = math.min(firstIndex + batchSize - 1, #changes)
-                for index = firstIndex, lastIndex do
-                    local change = changes[index]
-                    if change.object and change.object.Parent then
-                        pcall(function() change.object[change.property] = change.to end)
-                    end
-                end
-                if lastIndex < #changes then task.wait() end
-            end
-            if generation ~= RuntimeDiagnostics.ThemeTransitionToken then return end
-            overlayChangesApplied = true
-            if transitionTweenCompleted then
-                if overlay and overlay.Parent then
-                    local settleTween = TweenService:Create(
-                        overlay,
-                        TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-                        { BackgroundTransparency = 1 }
-                    )
-                    RuntimeDiagnostics.ActiveThemeTween = settleTween
-                    settleTween.Completed:Connect(function(playbackState)
-                        if playbackState == Enum.PlaybackState.Completed then finishThemeTransition(true) end
-                    end)
-                    settleTween:Play()
-                else
-                    finishThemeTransition(true)
-                end
-            end
-        end)
-    end
     return true
 end
 
