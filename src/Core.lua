@@ -673,8 +673,18 @@ function UIRefs.ScriptUI.refreshCards()
         local exec=create("TextButton", {Position=UDim2.new(1,-88,1,-36), Size=UDim2.fromOffset(70,26), BackgroundColor3=Theme.Accent, BorderSizePixel=0, Text="Execute", TextColor3=Theme.White, Font=Theme.FontBold, TextSize=11, ZIndex=7}, card); corner(exec,7)
 
         del.MouseButton1Click:Connect(function()
-            if _G.deleteHubScript then _G.deleteHubScript(item.name) end
-            UIRefs.ScriptUI.refreshCards()
+            local deleted, message = false, "Delete handler is unavailable."
+            if _G.deleteHubScript then
+                deleted, message = _G.deleteHubScript(item.name)
+            end
+            if deleted then
+                UIRefs.ScriptUI.Hint.Text = message or ("Deleted " .. item.name)
+                UIRefs.ScriptUI.Hint.TextColor3 = Theme.MutedText
+                UIRefs.ScriptUI.refreshCards()
+            else
+                UIRefs.ScriptUI.Hint.Text = "Delete failed: " .. tostring(message or "Script could not be deleted.")
+                UIRefs.ScriptUI.Hint.TextColor3 = Theme.Danger
+            end
         end)
 
         edit.MouseButton1Click:Connect(function()
@@ -1006,6 +1016,7 @@ local sliderKnobStroke = create("UIStroke", {
 }, sliderKnob)
 
 local tickLabels = {}
+local sliderDragging = false
 local effortLabelRow = create("Frame", {
     Position = UDim2.new(0, sliderHorizontalInset, 0, 62),
     Size = UDim2.new(1, -sliderHorizontalInset * 2, 0, 14),
@@ -1040,12 +1051,11 @@ setEffortIndex = function(i)
     end
     AI.Effort = effortLevelNames[effortIndex]
     if changed then debugTrace("INFO", "Effort → " .. AI.Effort) end
-    saveSettings()
+    if not sliderDragging then saveSettings() end
 end
 sliderEffortGradient.Color = UIRefs.EffortGradients[effortIndex]
 sliderKnobStroke.Color = UIRefs.EffortColors[effortIndex]
 
-local sliderDragging = false
 local function updateFromPointer(px)
     local trackX = sliderTrackBg.AbsolutePosition.X
     local trackW = sliderTrackBg.AbsoluteSize.X
@@ -1058,9 +1068,11 @@ sliderKnob.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliderDragging = true end
 end)
 sliderTrackBg.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        updateFromPointer(UIRefs.UserInputService:GetMouseLocation().X)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         sliderDragging = true
+        local pointerX = input.UserInputType == Enum.UserInputType.Touch and input.Position.X
+            or UIRefs.UserInputService:GetMouseLocation().X
+        updateFromPointer(pointerX)
     end
 end)
 UIRefs.UserInputService.InputChanged:Connect(function(input)
@@ -1070,7 +1082,11 @@ UIRefs.UserInputService.InputChanged:Connect(function(input)
     end
 end)
 UIRefs.UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliderDragging = false end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local wasDragging = sliderDragging
+        sliderDragging = false
+        if wasDragging then saveSettings() end
+    end
 end)
 
 local function toggleEffortPopup(show)
@@ -1505,6 +1521,17 @@ RuntimeDiagnostics.BeginMainWindowDrag = function(input, fromTitleRegion)
     local frameSize = UIRefs.MainFrame.AbsoluteSize
     if pointer.X < framePosition.X or pointer.Y < framePosition.Y
         or pointer.X > framePosition.X + frameSize.X or pointer.Y > framePosition.Y + frameSize.Y then return end
+
+    -- The effort popup owns its full gesture area, including the thin slider track.
+    -- Explicit bounds keep the window drag from stealing slider pointer input.
+    if not fromTitleRegion and UIRefs.EffortPopup and UIRefs.EffortPopup.Visible then
+        local popupPosition = UIRefs.EffortPopup.AbsolutePosition
+        local popupSize = UIRefs.EffortPopup.AbsoluteSize
+        if pointer.X >= popupPosition.X and pointer.X <= popupPosition.X + popupSize.X
+            and pointer.Y >= popupPosition.Y and pointer.Y <= popupPosition.Y + popupSize.Y then
+            return
+        end
+    end
 
     -- Only preserve controls that need a continuous gesture. Buttons can still
     -- click normally; a drag begins only after the pointer moves past its slop.
