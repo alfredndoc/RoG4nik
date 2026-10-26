@@ -36,7 +36,11 @@ local function pathOf(obj)
 end
 ThemeEngine.pathOf = pathOf
 
+local DEBUG_LOGGING = false
+ThemeEngine.DebugLoggingEnabled = DEBUG_LOGGING
+
 local function debugTrace(level, message)
+    if not DEBUG_LOGGING then return end
     local line = ("[Dr4gonik Hub][%s] %s"):format(tostring(level), tostring(message))
     RuntimeDiagnostics.LastLog = line
     if level == "ERROR" or level == "WARN" then
