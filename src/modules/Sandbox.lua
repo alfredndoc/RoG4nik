@@ -75,6 +75,44 @@ function _G.runHubScript(name)
     if type(_G.runInSandbox) ~= "function" then return {ok=false,error="Sandbox is not initialized yet.",output=""} end
     return _G.runInSandbox(source)
 end
+function _G.deleteHubScript(name)
+    name = safeScriptName(name)
+    local item = HubScriptLibrary.Items[name]
+    local path = scriptPath(name)
+    local diskPath
+
+    if type(isfile) == "function" then
+        local ok, exists = pcall(isfile, path)
+        if ok and exists then diskPath = path end
+    end
+    if not diskPath and type(listfiles) == "function" then
+        local ok, files = pcall(listfiles, HubScriptLibrary.Folder)
+        if ok and type(files) == "table" then
+            for _, candidate in ipairs(files) do
+                local fileName = tostring(candidate):match("([^/\\]+)%.lua$")
+                if fileName == name then
+                    diskPath = candidate
+                    break
+                end
+            end
+        end
+    end
+
+    if diskPath then
+        if type(delfile) ~= "function" then
+            return false, "This executor cannot delete saved files."
+        end
+        local ok, result = pcall(delfile, diskPath)
+        if not ok or result == false then
+            return false, "Could not delete saved file: " .. tostring(result)
+        end
+    elseif not item then
+        return false, "Script not found."
+    end
+
+    HubScriptLibrary.Items[name] = nil
+    return true, diskPath and "Deleted saved script." or "Deleted session script."
+end
 end -- script-library helper scope
 
 --============================================================
