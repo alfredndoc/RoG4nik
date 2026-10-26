@@ -24,7 +24,11 @@ local RuntimeDiagnostics = {
 }
 ThemeEngine.RuntimeDiagnostics = RuntimeDiagnostics
 
-local ThemeDebug = { History = {}, LastMisses = {}, TotalUpdates = 0, TotalMisses = 0 }
+local ThemeDebug = {
+    History = {}, LastMisses = {}, TotalUpdates = 0, TotalMisses = 0,
+    LastScan = nil, LastRoleRecoveries = 0, LastRoleDrops = 0,
+}
+ThemeDebug.DebugLoggingEnabled = true
 ThemeEngine.ThemeDebug = ThemeDebug
 _G.ThemeDebug = ThemeDebug
 
@@ -39,11 +43,10 @@ local function pathOf(obj)
 end
 ThemeEngine.pathOf = pathOf
 
-local DEBUG_LOGGING = false
-ThemeEngine.DebugLoggingEnabled = DEBUG_LOGGING
+ThemeEngine.DebugLoggingEnabled = true
 
 local function debugTrace(level, message)
-    if not DEBUG_LOGGING then return end
+    if not ThemeEngine.DebugLoggingEnabled then return end
     local line = ("[Dr4gonik Hub][%s] %s"):format(tostring(level), tostring(message))
     RuntimeDiagnostics.LastLog = line
     if level == "ERROR" or level == "WARN" then
@@ -495,32 +498,71 @@ end
 
 local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRoles)
     local changes, misses = {}, {}
-    if not root then return changes, misses end
+    local stats = {
+        descendants = 0, colorPropertiesRead = 0, nonColorProperties = 0,
+        unsupportedPropertyReads = 0, gradientsScanned = 0, gradientUpdates = 0,
+        resolvedColorRoles = 0, recoveredRoles = 0, droppedRoles = 0,
+        recoveryExamples = {}, droppedExamples = {},
+    }
+    if not root then return changes, misses, stats end
 
-    -- Walk the live GUI once per switch so theme colors assigned after creation
-    -- are not missed. The registry keeps each property's role when a previous
-    -- transition was interrupted and its current color is between preset values.
+    local function addRoleExample(list, obj, property, previousRole, resolvedRole, color)
+        if #list >= 5 then return end
+        list[#list + 1] = {
+            path = pathOf(obj), property = property, previousRole = previousRole,
+            resolvedRole = resolvedRole, color = tostring(color),
+        }
+    end
+
+    local function recordRecovery(obj, property, previousRole, resolvedRole, color)
+        stats.recoveredRoles += 1
+        addRoleExample(stats.recoveryExamples, obj, property, previousRole, resolvedRole, color)
+    end
+
     local function collectProperty(obj, property)
+        stats.colorPropertiesRead += 1
         -- A bad or unsupported property name must never abort the whole theme scan.
         local ok, current = pcall(function() return obj[property] end)
-        if not ok or typeof(current) ~= "Color3" then return end
+        if not ok then
+            stats.unsupportedPropertyReads += 1
+            return
+        end
+        if typeof(current) ~= "Color3" then
+            stats.nonColorProperties += 1
+            return
+        end
 
         local roles = ThemeRoleRegistry[obj]
         local role = roles and roles[property]
+        local registeredRole = role
         local currentRole = themeKeyForColor(current, property, oldTheme)
         if role and oldTheme[role] ~= current then
             if currentRole then
                 role = currentRole
+                if role ~= registeredRole then
+                    recordRecovery(obj, property, registeredRole, role, current)
+                end
             elseif not preserveInFlightRoles then
                 role = themeKeyForPaletteColor(current, property, role)
-                if not role then roles[property] = nil end
+                if role then
+                    recordRecovery(obj, property, registeredRole, role, current)
+                else
+                    roles[property] = nil
+                    stats.droppedRoles += 1
+                    addRoleExample(stats.droppedExamples, obj, property, registeredRole, nil, current)
+                end
             end
         end
         if not role then
-            role = currentRole or themeKeyForPaletteColor(current, property)
+            role = currentRole
+            if not role then
+                role = themeKeyForPaletteColor(current, property)
+                if role then recordRecovery(obj, property, nil, role, current) end
+            end
         end
 
         if role and newTheme[role] then
+            stats.resolvedColorRoles += 1
             if not roles then
                 roles = {}
                 ThemeRoleRegistry[obj] = roles
@@ -544,6 +586,7 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
     end
 
     local function collectGradient(obj)
+        stats.gradientsScanned += 1
         local current = obj.Color
         if typeof(current) ~= "ColorSequence" then return end
 
@@ -556,16 +599,32 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
 
         for index, keypoint in ipairs(keypoints) do
             local role = registeredRoles and registeredRoles[index]
+            local registeredRole = role
             local currentRole = themeKeyForColor(keypoint.Value, "Color", oldTheme)
             if role and oldTheme[role] ~= keypoint.Value then
                 if currentRole then
                     role = currentRole
+                    if role ~= registeredRole then
+                        recordRecovery(obj, "Color[" .. index .. "]", registeredRole, role, keypoint.Value)
+                    end
                 elseif not preserveInFlightRoles then
                     role = themeKeyForPaletteColor(keypoint.Value, "Color", role)
+                    if role then
+                        recordRecovery(obj, "Color[" .. index .. "]", registeredRole, role, keypoint.Value)
+                    else
+                        stats.droppedRoles += 1
+                        addRoleExample(stats.droppedExamples, obj, "Color[" .. index .. "]", registeredRole, nil, keypoint.Value)
+                    end
                 end
             end
             if not role then
-                role = currentRole or themeKeyForPaletteColor(keypoint.Value, "Color")
+                role = currentRole
+                if not role then
+                    role = themeKeyForPaletteColor(keypoint.Value, "Color")
+                    if role then
+                        recordRecovery(obj, "Color[" .. index .. "]", nil, role, keypoint.Value)
+                    end
+                end
             end
 
             local targetColor = keypoint.Value
@@ -580,6 +639,7 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
         if next(nextRoles) then
             ThemeGradientRoleRegistry[obj] = { roles = nextRoles, keypointCount = #keypoints }
             if changed then
+                stats.gradientUpdates += 1
                 changes[#changes + 1] = {
                     object = obj,
                     property = "Color",
@@ -593,6 +653,7 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
     end
 
     for _, obj in ipairs(root:GetDescendants()) do
+        stats.descendants += 1
         if obj:IsA("GuiObject") then
             collectProperty(obj, "BackgroundColor3")
             collectProperty(obj, "BorderColor3")
@@ -619,7 +680,7 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
             collectGradient(obj)
         end
     end
-    return changes, misses
+    return changes, misses, stats
 end
 
 local function cancelThemeColorTweens(changes)
@@ -669,8 +730,12 @@ local function setTheme(name)
     local previousTargetName = ThemeEngine.CurrentThemeName
     local activeThemeTransition = RuntimeDiagnostics.ActiveThemeTween ~= nil
         or RuntimeDiagnostics.ActiveThemeConnection ~= nil
+    debugTrace("INFO", ("Theme request · selected=%s · applied=%s · requested=%s · inFlight=%s"):format(
+        tostring(previousTargetName), tostring(ThemeEngine.AppliedThemeName),
+        tostring(name), tostring(activeThemeTransition)
+    ))
     if name == previousTargetName and activeThemeTransition then
-        debugTrace("INFO", "Theme transition already targeting: " .. name)
+        debugTrace("INFO", "Theme request kept current transition target: " .. name)
         return true
     end
 
@@ -698,16 +763,52 @@ local function setTheme(name)
     local preserveInFlightRoles = RuntimeDiagnostics.ActiveThemeTween ~= nil
         or RuntimeDiagnostics.ActiveThemeConnection ~= nil
         or (activeObjectTweens ~= nil and #activeObjectTweens > 0)
-    local collected, changes, misses = pcall(
+    local scanStartedAt = os.clock()
+    local collected, changes, misses, scanStats = pcall(
         collectThemeChanges, root, oldTheme, newThemeSnapshot, preserveInFlightRoles
     )
     if not collected then
-        debugTrace("ERROR", "Theme color scan failed: " .. tostring(changes))
+        debugTrace("ERROR", "Theme color scan failed · " .. tostring(changes))
         return false
+    end
+    scanStats.durationMs = (os.clock() - scanStartedAt) * 1000
+    ThemeDebug.LastScan = scanStats
+    ThemeDebug.LastRoleRecoveries = scanStats.recoveredRoles
+    ThemeDebug.LastRoleDrops = scanStats.droppedRoles
+    debugTrace("INFO", ("Theme scan · %s → %s · descendants=%d · properties=%d · gradients=%d · updates=%d (gradients=%d) · %.1fms"):format(
+        oldName, name, scanStats.descendants, scanStats.colorPropertiesRead,
+        scanStats.gradientsScanned, #changes, scanStats.gradientUpdates, scanStats.durationMs
+    ))
+    debugTrace("INFO", ("Theme roles · resolved=%d · recovered=%d · dropped=%d · unsupported=%d · misses=%d"):format(
+        scanStats.resolvedColorRoles, scanStats.recoveredRoles, scanStats.droppedRoles,
+        scanStats.unsupportedPropertyReads, #misses
+    ))
+    for _, example in ipairs(scanStats.recoveryExamples) do
+        debugTrace("INFO", ("Theme role recovered · %s.%s · %s → %s"):format(
+            example.path, example.property, tostring(example.previousRole or "unregistered"),
+            tostring(example.resolvedRole)
+        ))
+    end
+    for _, example in ipairs(scanStats.droppedExamples) do
+        debugTrace("WARN", ("Theme role dropped · %s.%s · previous=%s · color=%s"):format(
+            example.path, example.property, tostring(example.previousRole), example.color
+        ))
+    end
+    if scanStats.unsupportedPropertyReads > 0 then
+        debugTrace("WARN", ("Theme scan skipped %d unsupported property reads"):format(
+            scanStats.unsupportedPropertyReads
+        ))
+    end
+    for index = 1, math.min(#misses, 5) do
+        local miss = misses[index]
+        debugTrace("WARN", ("Theme preset miss · %s.%s · role=%s"):format(
+            miss.path, miss.prop, tostring(miss.role)
+        ))
     end
 
     if name == previousTargetName and name == oldName and #changes == 0
         and not preserveInFlightRoles then
+        debugTrace("INFO", "Theme already synchronized · " .. name)
         return true
     end
 
@@ -747,6 +848,7 @@ local function setTheme(name)
     cancelThemeColorTweens(changes)
     local overlay = RuntimeDiagnostics.ThemeTransitionOverlay
     local transitionDuration = preserveInFlightRoles and 0.28 or 0.42
+    local transitionStartedAt = os.clock()
     local changeGroups, changesByObject = {}, {}
     for _, change in ipairs(changes) do
         local object = change.object
@@ -761,6 +863,10 @@ local function setTheme(name)
         end
     end
     local transitionFinished = false
+    debugTrace("INFO", ("Theme transition start · id=%d · %s → %s · duration=%.2fs · updates=%d · groups=%d · interrupted=%s"):format(
+        generation, oldName, name, transitionDuration, #changes,
+        #changeGroups, tostring(preserveInFlightRoles)
+    ))
 
     local function finishThemeTransition()
         if generation ~= RuntimeDiagnostics.ThemeTransitionToken or transitionFinished then return end
@@ -783,7 +889,9 @@ local function setTheme(name)
         RuntimeDiagnostics.ThemeSwitchCount += 1
         RuntimeDiagnostics.LastThemeColorUpdates = #changes
         RuntimeDiagnostics.LastThemeSwitch = ("%s → %s · %d animated · %d missed"):format(oldName, name, #changes, #misses)
-        debugTrace(#misses > 0 and "WARN" or "INFO", "Theme switch: " .. RuntimeDiagnostics.LastThemeSwitch)
+        debugTrace(#misses > 0 and "WARN" or "INFO", ("Theme transition complete · id=%d · %s → %s · updates=%d · misses=%d · elapsed=%.1fms"):format(
+            generation, oldName, name, #changes, #misses, (os.clock() - transitionStartedAt) * 1000
+        ))
         if RuntimeDiagnostics.ThemeDebugLabel and RuntimeDiagnostics.ThemeDebugLabel.Parent then
             RuntimeDiagnostics.ThemeDebugLabel.Text = "Theme engine: " .. RuntimeDiagnostics.LastThemeSwitch
             RuntimeDiagnostics.ThemeDebugLabel.TextColor3 = #misses > 0 and Theme.Danger or Theme.MutedText
@@ -801,6 +909,7 @@ local function setTheme(name)
     end
 
     if #changes == 0 then
+        debugTrace("INFO", "Theme transition has no color updates; synchronizing applied-theme state.")
         finishThemeTransition()
         return #misses == 0
     end
