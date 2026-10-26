@@ -758,13 +758,13 @@ end
 UIRefs.SaveAsPopup = create("Frame", {
     Name = "SaveAsPopup", Size = UDim2.fromOffset(300, 400), Position = UDim2.new(0.5, -150, 0.5, -200),
     BackgroundColor3 = Theme.PanelRaised, BorderSizePixel = 0, Visible = false, ZIndex = 100
-}, UIRefs.CodeEditorFrame)
+}, UIRefs.RightPane)
 corner(UIRefs.SaveAsPopup, 12); stroke(UIRefs.SaveAsPopup, Theme.Border, 1, 0.1)
 
 UIRefs.SaveAsBackdrop = create("TextButton", {
     Name = "SaveAsBackdrop", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 0,
     BackgroundColor3 = Theme.Background, Text = "", AutoButtonColor = false, Visible = false, ZIndex = 99
-}, UIRefs.CodeEditorFrame)
+}, UIRefs.RightPane)
 
 UIRefs.SaveAsList = create("ScrollingFrame", {
     Position = UDim2.new(0, 10, 0, 50), Size = UDim2.new(1, -20, 1, -60),
