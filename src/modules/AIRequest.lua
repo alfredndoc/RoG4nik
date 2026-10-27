@@ -726,7 +726,7 @@ if composerInputBox then
     composerInputBox.Focused:Connect(function() tween(UIRefs.InputStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
     composerInputBox.FocusLost:Connect(function(enterPressed)
         tween(UIRefs.InputStroke, { Color = Theme.Border, Transparency = 0.05 }, 0.16)
-        if enterPressed and AI.EnterToSend then
+        if enterPressed and AI.EnterToSend and not UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
             AI.SendMessage()
         end
     end)
