@@ -989,7 +989,7 @@ UIRefs.ComposerScroll = create("ScrollingFrame", {
 UIRefs.InputBox = create("TextBox", {
     Name = "MessageInput", Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -8, 0, 24),
     AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
-    Text = "", PlaceholderText = "Message Dr4gonik Hub...", PlaceholderColor3 = Theme.QuietText,
+    Text = "", PlaceholderText = "Type Here...", PlaceholderColor3 = Theme.QuietText,
     TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
     Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false, MultiLine = true, TextWrapped = true, ZIndex = 10,
 }, UIRefs.ComposerScroll)
@@ -1489,7 +1489,7 @@ UIRefs.SearchButton.MouseButton1Click:Connect(function()
         UIRefs.InputBox.PlaceholderText = "Search conversations or type a message..."
         UIRefs.InputBox:CaptureFocus()
     else
-        UIRefs.InputBox.PlaceholderText = "Message Dr4gonik Hub..."
+        UIRefs.InputBox.PlaceholderText = "Type Here..."
         UIRefs.InputBox:ReleaseFocus()
     end
 end)
