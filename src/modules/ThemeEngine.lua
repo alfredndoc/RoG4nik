@@ -500,7 +500,7 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
     local stats = {
         descendants = 0, colorPropertiesRead = 0, nonColorProperties = 0,
         unsupportedPropertyReads = 0, gradientsScanned = 0, gradientUpdates = 0,
-        resolvedColorRoles = 0, recoveredRoles = 0, droppedRoles = 0,
+        resolvedColorRoles = 0, recoveredRoles = 0, preservedRoles = 0, droppedRoles = 0,
         recoveryExamples = {}, droppedExamples = {},
     }
     if not root then return changes, misses, stats end
@@ -542,13 +542,17 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
                     recordRecovery(obj, property, registeredRole, role, current)
                 end
             elseif not preserveInFlightRoles then
-                role = themeKeyForPaletteColor(current, property, role)
-                if role then
-                    recordRecovery(obj, property, registeredRole, role, current)
+                local recoveredRole = themeKeyForPaletteColor(current, property, role)
+                if recoveredRole then
+                    role = recoveredRole
+                    if role ~= registeredRole then
+                        recordRecovery(obj, property, registeredRole, role, current)
+                    end
                 else
-                    roles[property] = nil
-                    stats.droppedRoles += 1
-                    addRoleExample(stats.droppedExamples, obj, property, registeredRole, nil, current)
+                    -- Keep a registered semantic role when a transient color does not
+                    -- exactly match a preset (for example during hover or appearance effects).
+                    role = registeredRole
+                    stats.preservedRoles += 1
                 end
             end
         end
@@ -607,12 +611,16 @@ local function collectThemeChanges(root, oldTheme, newTheme, preserveInFlightRol
                         recordRecovery(obj, "Color[" .. index .. "]", registeredRole, role, keypoint.Value)
                     end
                 elseif not preserveInFlightRoles then
-                    role = themeKeyForPaletteColor(keypoint.Value, "Color", role)
-                    if role then
-                        recordRecovery(obj, "Color[" .. index .. "]", registeredRole, role, keypoint.Value)
+                    local recoveredRole = themeKeyForPaletteColor(keypoint.Value, "Color", role)
+                    if recoveredRole then
+                        role = recoveredRole
+                        if role ~= registeredRole then
+                            recordRecovery(obj, "Color[" .. index .. "]", registeredRole, role, keypoint.Value)
+                        end
                     else
-                        stats.droppedRoles += 1
-                        addRoleExample(stats.droppedExamples, obj, "Color[" .. index .. "]", registeredRole, nil, keypoint.Value)
+                        -- Keep tracking gradient keypoints whose colors are between presets.
+                        role = registeredRole
+                        stats.preservedRoles += 1
                     end
                 end
             end
@@ -778,9 +786,9 @@ local function setTheme(name)
         oldName, name, scanStats.descendants, scanStats.colorPropertiesRead,
         scanStats.gradientsScanned, #changes, scanStats.gradientUpdates, scanStats.durationMs
     ))
-    debugTrace("INFO", ("Theme roles · resolved=%d · recovered=%d · dropped=%d · unsupported=%d · misses=%d"):format(
-        scanStats.resolvedColorRoles, scanStats.recoveredRoles, scanStats.droppedRoles,
-        scanStats.unsupportedPropertyReads, #misses
+    debugTrace("INFO", ("Theme roles · resolved=%d · recovered=%d · preserved=%d · dropped=%d · unsupported=%d · misses=%d"):format(
+        scanStats.resolvedColorRoles, scanStats.recoveredRoles, scanStats.preservedRoles,
+        scanStats.droppedRoles, scanStats.unsupportedPropertyReads, #misses
     ))
     for _, example in ipairs(scanStats.recoveryExamples) do
         debugTrace("INFO", ("Theme role recovered · %s.%s · %s → %s"):format(
