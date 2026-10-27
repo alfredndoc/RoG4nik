@@ -703,7 +703,7 @@ end
 -- from its parent as a compatibility fallback for bundles with an older Core table.
 local composerInputBox = UIRefs.InputBox
 if not composerInputBox and UIRefs.InputBar then
-    composerInputBox = UIRefs.InputBar:FindFirstChildWhichIsA("TextBox")
+    composerInputBox = UIRefs.InputBar:FindFirstChildWhichIsA("TextBox", true)
     if composerInputBox then UIRefs.InputBox = composerInputBox end
 end
 
