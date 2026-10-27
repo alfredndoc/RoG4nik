@@ -979,17 +979,46 @@ corner(UIRefs.EffortButton, 8)
 stroke(UIRefs.EffortButton, Theme.Accent, 1, 0.6)
 bindSoftButton(UIRefs.EffortButton, { BackgroundTransparency = 0, TextColor3 = Theme.AccentHover }, 1.06)
 
-UIRefs.InputClip = create("Frame", {
+UIRefs.InputClip = create("ScrollingFrame", {
     Name = "MessageInputClip", Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -178, 1, 0),
-    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 10,
+    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Active = true,
+    ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 3,
+    ScrollBarImageColor3 = Theme.Border, ScrollBarImageTransparency = 0.45,
+    CanvasSize = UDim2.new(0, 0, 0, 0), ZIndex = 10,
 }, UIRefs.InputBar)
 UIRefs.InputBox = create("TextBox", {
-    Name = "MessageInput", Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1),
+    Name = "MessageInput", Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -8, 0, UIRefs.INPUT_HEIGHT),
     BackgroundTransparency = 1, Text = "", PlaceholderText = "Type Here...", PlaceholderColor3 = Theme.QuietText,
     TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
     Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false,
-    MultiLine = false, TextWrapped = false, ZIndex = 10,
+    MultiLine = false, TextWrapped = true, ZIndex = 10,
 }, UIRefs.InputClip)
+
+-- Keep the composer at its original size; only the text's invisible canvas grows and scrolls.
+local inputLayoutQueued = false
+local function syncInputTextCanvas()
+    if inputLayoutQueued then return end
+    inputLayoutQueued = true
+    task.defer(function()
+        task.wait()
+        inputLayoutQueued = false
+        if not UIRefs.InputBox or not UIRefs.InputClip then return end
+
+        local viewportHeight = UIRefs.InputClip.AbsoluteSize.Y
+        local textHeight = math.max(UIRefs.InputBox.TextSize + 4, UIRefs.InputBox.TextBounds.Y + 4)
+        UIRefs.InputBox.Size = UDim2.new(1, -8, 0, textHeight)
+        UIRefs.InputBox.Position = UDim2.new(0, 0, 0, math.max(0, (viewportHeight - textHeight) * 0.5))
+        UIRefs.InputClip.CanvasSize = UDim2.new(0, 0, 0, math.max(viewportHeight, textHeight))
+        if UIRefs.InputBox:IsFocused() then
+            UIRefs.InputClip.CanvasPosition = Vector2.new(0, math.max(0, textHeight - viewportHeight))
+        elseif textHeight <= viewportHeight then
+            UIRefs.InputClip.CanvasPosition = Vector2.new(0, 0)
+        end
+    end)
+end
+UIRefs.InputBox:GetPropertyChangedSignal("Text"):Connect(syncInputTextCanvas)
+UIRefs.InputBox:GetPropertyChangedSignal("TextBounds"):Connect(syncInputTextCanvas)
+task.defer(syncInputTextCanvas)
 
 UIRefs.ComposerMoreBtn = create("TextButton", {
     Name = "ComposerMoreButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -49, 0.5, 0),
