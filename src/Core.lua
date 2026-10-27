@@ -979,12 +979,20 @@ corner(UIRefs.EffortButton, 8)
 stroke(UIRefs.EffortButton, Theme.Accent, 1, 0.6)
 bindSoftButton(UIRefs.EffortButton, { BackgroundTransparency = 0, TextColor3 = Theme.AccentHover }, 1.06)
 
-UIRefs.InputBox = create("TextBox", {
-    Name = "MessageInput", Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -178, 1, 0),
-    BackgroundTransparency = 1, Text = "", PlaceholderText = "Message Dr4gonik Hub...", PlaceholderColor3 = Theme.QuietText,
-    TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
-    Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false, MultiLine = false, TextWrapped = false, ZIndex = 10,
+UIRefs.ComposerScroll = create("ScrollingFrame", {
+    Name = "MessageInputViewport", Position = UDim2.new(0, 84, 0, 7), Size = UDim2.new(1, -178, 1, -14),
+    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true,
+    ScrollingDirection = Enum.ScrollingDirection.Y, AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    CanvasSize = UDim2.new(0, 0, 0, 0), ScrollBarThickness = 3,
+    ScrollBarImageColor3 = Theme.Border, ScrollBarImageTransparency = 0.45, ZIndex = 10,
 }, UIRefs.InputBar)
+UIRefs.InputBox = create("TextBox", {
+    Name = "MessageInput", Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -8, 0, 24),
+    AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
+    Text = "", PlaceholderText = "Message Dr4gonik Hub...", PlaceholderColor3 = Theme.QuietText,
+    TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+    Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false, MultiLine = true, TextWrapped = true, ZIndex = 10,
+}, UIRefs.ComposerScroll)
 
 UIRefs.ComposerMoreBtn = create("TextButton", {
     Name = "ComposerMoreButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -49, 0.5, 0),
@@ -1019,6 +1027,43 @@ UIRefs.EffortPopup = create("Frame", {
 corner(UIRefs.EffortPopup, 12)
 stroke(UIRefs.EffortPopup, Theme.Border, 1, 0.05)
 local effortPopupScale = create("UIScale", { Scale = 1 }, UIRefs.EffortPopup)
+
+-- Grow the composer with wrapped text, then keep the full draft in its scroll viewport.
+local COMPOSER_MAX_HEIGHT = 154
+local COMPOSER_MIN_HEIGHT = UIRefs.INPUT_HEIGHT
+local composerResizeQueued = false
+local function syncComposerLayout()
+    if composerResizeQueued then return end
+    composerResizeQueued = true
+    task.defer(function()
+        task.wait()
+        composerResizeQueued = false
+        if not UIRefs.InputBox or not UIRefs.InputBar or not UIRefs.ComposerScroll then return end
+        local contentHeight = math.max(UIRefs.InputBox.TextBounds.Y, UIRefs.InputBox.TextSize + 6)
+        local targetHeight = math.clamp(contentHeight + 24, COMPOSER_MIN_HEIGHT, COMPOSER_MAX_HEIGHT)
+        UIRefs.InputBar.Size = UDim2.new(1, 0, 0, targetHeight)
+        UIRefs.InputBar.Position = UDim2.new(0, 0, 1, -targetHeight)
+        UIRefs.InputBox.Size = UDim2.new(1, -8, 0, contentHeight + 6)
+        UIRefs.ComposerScroll.Size = UDim2.new(1, -178, 1, -14)
+        UIRefs.ChatDisplay.Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + targetHeight + 14))
+        UIRefs.EffortPopup.Position = UDim2.new(0, 48, 1, -(targetHeight + 8))
+
+        -- Keep the controls aligned to the bottom row as the composer grows upward.
+        UIRefs.PlusButton.Position = UDim2.new(0, 10, 1, -46)
+        UIRefs.EffortButton.Position = UDim2.new(0, 48, 1, -43)
+        UIRefs.ComposerMoreBtn.Position = UDim2.new(1, -49, 1, -29)
+        UIRefs.SendBtn.Position = UDim2.new(1, -9, 1, -29)
+
+        local canvasHeight = math.max(contentHeight + 8, UIRefs.ComposerScroll.AbsoluteSize.Y)
+        UIRefs.ComposerScroll.CanvasSize = UDim2.new(0, 0, 0, canvasHeight)
+        if UIRefs.InputBox:IsFocused() then
+            UIRefs.ComposerScroll.CanvasPosition = Vector2.new(0, math.max(0, canvasHeight - UIRefs.ComposerScroll.AbsoluteSize.Y))
+        end
+    end)
+end
+UIRefs.InputBox:GetPropertyChangedSignal("Text"):Connect(syncComposerLayout)
+UIRefs.InputBox:GetPropertyChangedSignal("TextBounds"):Connect(syncComposerLayout)
+task.defer(syncComposerLayout)
 
 create("TextLabel", {
     Position = UDim2.new(0, 14, 0, 10), Size = UDim2.new(1, -28, 0, 18), BackgroundTransparency = 1,
