@@ -979,13 +979,17 @@ corner(UIRefs.EffortButton, 8)
 stroke(UIRefs.EffortButton, Theme.Accent, 1, 0.6)
 bindSoftButton(UIRefs.EffortButton, { BackgroundTransparency = 0, TextColor3 = Theme.AccentHover }, 1.06)
 
+UIRefs.InputClip = create("Frame", {
+    Name = "MessageInputClip", Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -178, 1, 0),
+    BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 10,
+}, UIRefs.InputBar)
 UIRefs.InputBox = create("TextBox", {
-    Name = "MessageInput", Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -178, 1, 0),
+    Name = "MessageInput", Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 1),
     BackgroundTransparency = 1, Text = "", PlaceholderText = "Type Here...", PlaceholderColor3 = Theme.QuietText,
     TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
     Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false,
-    MultiLine = false, TextWrapped = false, ClipsDescendants = true, ZIndex = 10,
-}, UIRefs.InputBar)
+    MultiLine = false, TextWrapped = false, ZIndex = 10,
+}, UIRefs.InputClip)
 
 UIRefs.ComposerMoreBtn = create("TextButton", {
     Name = "ComposerMoreButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -49, 0.5, 0),
