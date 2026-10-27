@@ -42,7 +42,7 @@ local function pathOf(obj)
 end
 ThemeEngine.pathOf = pathOf
 
-ThemeEngine.DebugLoggingEnabled = true
+ThemeEngine.DebugLoggingEnabled = false
 
 local function debugTrace(level, message)
     if not ThemeEngine.DebugLoggingEnabled then return end
