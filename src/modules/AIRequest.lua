@@ -724,9 +724,23 @@ end
 if composerInputBox then
     composerInputBox:GetPropertyChangedSignal("Text"):Connect(AI.RefreshSendButton)
     composerInputBox.Focused:Connect(function() tween(UIRefs.InputStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
+    -- This multiline composer grows and scrolls, so submit with Enter explicitly.
+    -- Shift+Enter (or disabling EnterToSend) keeps the normal newline behavior.
+    UIRefs.UserInputService.InputBegan:Connect(function(input)
+        local isReturn = input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.KeypadEnter
+        local shiftDown = UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+            or UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+        if isReturn and composerInputBox:IsFocused() and AI.EnterToSend and not shiftDown then
+            composerInputBox:ReleaseFocus(true)
+        end
+    end)
+    composerInputBox.ReturnPressedFromOnScreenKeyboard:Connect(function()
+        if AI.EnterToSend then composerInputBox:ReleaseFocus(true) end
+    end)
+
     composerInputBox.FocusLost:Connect(function(enterPressed)
         tween(UIRefs.InputStroke, { Color = Theme.Border, Transparency = 0.05 }, 0.16)
-        if enterPressed and AI.EnterToSend and not UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        if enterPressed and AI.EnterToSend then
             AI.SendMessage()
         end
     end)
