@@ -983,7 +983,6 @@ local function refreshRuntimeDiagnostics()
     end
     RuntimeDebugLabel.Text = table.concat(lines, "\n")
     RuntimeDebugLabel.TextColor3 = RuntimeDiagnostics.LastError ~= "None" and Theme.Danger or Theme.QuietText
-    print("[Dr4gonik Hub][DIAGNOSTICS]\n" .. RuntimeDebugLabel.Text)
 end
 RefreshDebugButton.MouseButton1Click:Connect(refreshRuntimeDiagnostics)
 
