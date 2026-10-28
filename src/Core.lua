@@ -984,7 +984,7 @@ UIRefs.InputClip = create("ScrollingFrame", {
     BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Active = true,
     ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 3,
     ScrollBarImageColor3 = Theme.Border, ScrollBarImageTransparency = 0.45,
-    CanvasSize = UDim2.new(0, 0, 0, 0), ZIndex = 10,
+    CanvasSize = UDim2.new(1, 0, 0, 0), ZIndex = 10,
 }, UIRefs.InputBar)
 UIRefs.InputBox = create("TextBox", {
     Name = "MessageInput", Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -8, 0, UIRefs.INPUT_HEIGHT),
@@ -1005,19 +1005,25 @@ local function syncInputTextCanvas()
         inputLayoutQueued = false
         if not UIRefs.InputBox or not UIRefs.InputClip then return end
 
-        local viewportHeight = UIRefs.InputClip.AbsoluteSize.Y
-        local textWidth = math.max(1, UIRefs.InputClip.AbsoluteSize.X - UIRefs.InputClip.ScrollBarThickness - 8)
+        local viewportHeight = UIRefs.InputClip.AbsoluteWindowSize.Y
+        local textWidth = math.max(1, UIRefs.InputClip.AbsoluteSize.X - 8)
         local textToMeasure = UIRefs.InputBox.Text ~= "" and UIRefs.InputBox.Text or UIRefs.InputBox.PlaceholderText
         local measured = inputTextService:GetTextSize(
-            textToMeasure, UIRefs.InputBox.Font, UIRefs.InputBox.TextSize,
+            textToMeasure, UIRefs.InputBox.TextSize, UIRefs.InputBox.Font,
             Vector2.new(textWidth, 100000)
         )
-        local textHeight = math.max(UIRefs.InputBox.TextSize + 4, measured.Y + 4)
+        local textHeight = math.max(UIRefs.InputBox.TextSize + 8, math.ceil(measured.Y) + 8)
         UIRefs.InputBox.Size = UDim2.new(1, -8, 0, textHeight)
         UIRefs.InputBox.Position = UDim2.new(0, 0, 0, math.max(0, (viewportHeight - textHeight) * 0.5))
-        UIRefs.InputClip.CanvasSize = UDim2.new(0, 0, 0, math.max(viewportHeight, textHeight))
+        UIRefs.InputClip.CanvasSize = UDim2.new(1, 0, 0, math.max(viewportHeight, textHeight))
         if UIRefs.InputBox:IsFocused() then
-            UIRefs.InputClip.CanvasPosition = Vector2.new(0, math.max(0, textHeight - viewportHeight))
+            -- Let ScrollingFrame recalculate its canvas before moving to the latest line.
+            task.defer(function()
+                task.wait()
+                if not UIRefs.InputBox or not UIRefs.InputClip or not UIRefs.InputBox:IsFocused() then return end
+                local maxY = math.max(0, UIRefs.InputClip.AbsoluteCanvasSize.Y - UIRefs.InputClip.AbsoluteWindowSize.Y)
+                UIRefs.InputClip.CanvasPosition = Vector2.new(0, maxY)
+            end)
         elseif textHeight <= viewportHeight then
             UIRefs.InputClip.CanvasPosition = Vector2.new(0, 0)
         end
