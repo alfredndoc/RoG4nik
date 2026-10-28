@@ -991,11 +991,12 @@ UIRefs.InputBox = create("TextBox", {
     BackgroundTransparency = 1, Text = "", PlaceholderText = "Type Here...", PlaceholderColor3 = Theme.QuietText,
     TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
     Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false,
-    MultiLine = false, TextWrapped = true, ZIndex = 10,
+    MultiLine = true, TextWrapped = true, ZIndex = 10,
 }, UIRefs.InputClip)
 
 -- Keep the composer at its original size; only the text's invisible canvas grows and scrolls.
 local inputLayoutQueued = false
+local inputTextService = game:GetService("TextService")
 local function syncInputTextCanvas()
     if inputLayoutQueued then return end
     inputLayoutQueued = true
@@ -1005,7 +1006,13 @@ local function syncInputTextCanvas()
         if not UIRefs.InputBox or not UIRefs.InputClip then return end
 
         local viewportHeight = UIRefs.InputClip.AbsoluteSize.Y
-        local textHeight = math.max(UIRefs.InputBox.TextSize + 4, UIRefs.InputBox.TextBounds.Y + 4)
+        local textWidth = math.max(1, UIRefs.InputClip.AbsoluteSize.X - UIRefs.InputClip.ScrollBarThickness - 8)
+        local textToMeasure = UIRefs.InputBox.Text ~= "" and UIRefs.InputBox.Text or UIRefs.InputBox.PlaceholderText
+        local measured = inputTextService:GetTextSize(
+            textToMeasure, UIRefs.InputBox.Font, UIRefs.InputBox.TextSize,
+            Vector2.new(textWidth, 100000)
+        )
+        local textHeight = math.max(UIRefs.InputBox.TextSize + 4, measured.Y + 4)
         UIRefs.InputBox.Size = UDim2.new(1, -8, 0, textHeight)
         UIRefs.InputBox.Position = UDim2.new(0, 0, 0, math.max(0, (viewportHeight - textHeight) * 0.5))
         UIRefs.InputClip.CanvasSize = UDim2.new(0, 0, 0, math.max(viewportHeight, textHeight))
