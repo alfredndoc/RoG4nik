@@ -724,6 +724,16 @@ end
 if composerInputBox then
     composerInputBox:GetPropertyChangedSignal("Text"):Connect(AI.RefreshSendButton)
     composerInputBox.Focused:Connect(function() tween(UIRefs.InputStroke, { Color = Theme.Accent, Transparency = 0 }, 0.16) end)
+    -- Wrapped text uses a multiline box. Keep Enter-to-send, with Shift+Enter for a newline.
+    UIRefs.UserInputService.InputBegan:Connect(function(input)
+        local isReturn = input.KeyCode == Enum.KeyCode.Return or input.KeyCode == Enum.KeyCode.KeypadEnter
+        local shiftDown = UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+            or UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.RightShift)
+        if isReturn and composerInputBox:IsFocused() and AI.EnterToSend and not shiftDown then
+            composerInputBox:ReleaseFocus(true)
+        end
+    end)
+
     composerInputBox.FocusLost:Connect(function(enterPressed)
         tween(UIRefs.InputStroke, { Color = Theme.Border, Transparency = 0.05 }, 0.16)
         if enterPressed and AI.EnterToSend and not UIRefs.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
