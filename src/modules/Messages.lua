@@ -258,7 +258,11 @@ local function showConversation(id)
     refreshConversationStyles()
     clearRenderedMessages()
     chatHasContent = #conversation.history > 0
-    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = not chatHasContent end
+    if UIRefs.EmptyChatLabel then
+        UIRefs.EmptyChatLabel.Text = chatHasContent and UIRefs.EmptyChatLabel.Text or ""
+        UIRefs.EmptyChatLabel.Visible = not chatHasContent
+    end
+    if UIRefs.ChatHome then UIRefs.ChatHome.Visible = not chatHasContent end
     for _, message in ipairs(conversation.history) do
         addMessageBubble(message.text, message.role, false, message.reasoning, message.model, message.toolKind, message.toolSuccess)
     end
