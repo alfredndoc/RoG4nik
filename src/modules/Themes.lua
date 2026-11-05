@@ -3,15 +3,15 @@
 --============================================================
 local Themes = {
     Dark = {
-        Background   = Color3.fromRGB(30, 30, 36), Sidebar = Color3.fromRGB(35, 35, 43),
-        Panel = Color3.fromRGB(43, 43, 54), PanelRaised = Color3.fromRGB(49, 49, 61),
-        Hover = Color3.fromRGB(58, 58, 70), Selected = Color3.fromRGB(53, 53, 66),
-        Accent = Color3.fromRGB(78, 111, 255), AccentHover = Color3.fromRGB(102, 130, 255),
-        AccentSoft = Color3.fromRGB(43, 53, 91), PrimaryText = Color3.fromRGB(245, 245, 250),
-        MutedText = Color3.fromRGB(164, 164, 179), QuietText = Color3.fromRGB(124, 124, 142),
-        Border = Color3.fromRGB(67, 67, 81), Danger = Color3.fromRGB(235, 83, 91),
-        White = Color3.new(1, 1, 1), RightBg = Color3.fromRGB(38, 38, 46),
-        SegmentedBg = Color3.fromRGB(29, 29, 36),
+        Background = Color3.fromRGB(17, 18, 21), Sidebar = Color3.fromRGB(20, 21, 25),
+        Panel = Color3.fromRGB(27, 28, 33), PanelRaised = Color3.fromRGB(32, 33, 39),
+        Hover = Color3.fromRGB(42, 44, 51), Selected = Color3.fromRGB(35, 42, 52),
+        Accent = Color3.fromRGB(47, 112, 171), AccentHover = Color3.fromRGB(41, 119, 166),
+        AccentSoft = Color3.fromRGB(29, 47, 61), PrimaryText = Color3.fromRGB(244, 245, 247),
+        MutedText = Color3.fromRGB(163, 166, 174), QuietText = Color3.fromRGB(119, 123, 132),
+        Border = Color3.fromRGB(55, 57, 64), Danger = Color3.fromRGB(236, 92, 101),
+        White = Color3.new(1, 1, 1), RightBg = Color3.fromRGB(19, 20, 24),
+        SegmentedBg = Color3.fromRGB(23, 24, 28),
     },
     White = {
         Background   = Color3.fromRGB(248, 248, 250), Sidebar = Color3.fromRGB(240, 240, 244),
