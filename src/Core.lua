@@ -645,6 +645,7 @@ if UIRefs.WINDOW_HEIGHT < 620 then
 end
 --============================================================
 --// CODE EDITOR TAB
+UIRefs.ScriptUI = {}
 UIRefs.CodeEditorFrame = create("Frame", {
     Name = "CodeEditorFrame", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.WORKSPACE_BOTTOM_GAP)), BackgroundTransparency = 1, Visible = false, ZIndex = 4,
