@@ -439,13 +439,13 @@ UIRefs.TitleGroup = create("Frame", {
 }, UIRefs.RightHeader)
 UIRefs.ChatTitle = create("TextLabel", {
     Name = "ChatTitle", Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1,
-    Text = "New conversation", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
+    Text = "Dr4gonik Hub", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
     TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
 }, UIRefs.TitleGroup)
 UIRefs.ChatSub = create("TextLabel", {
     Name = "ChatSubtitle", Position = UDim2.new(0, 0, 0, 23), Size = UDim2.new(1, 0, 0, 16),
-    BackgroundTransparency = 1, Text = "AI coding workspace", TextColor3 = Theme.MutedText,
+    BackgroundTransparency = 1, Text = "Dr4gonik Hub", TextColor3 = Theme.MutedText,
     Font = Theme.Font, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
 }, UIRefs.TitleGroup)
@@ -499,7 +499,7 @@ padding(UIRefs.ChatDisplay, 2, 7, 9, 12)
 UIRefs.EmptyChatLabel = create("TextLabel", {
     Name = "EmptyState", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
-    Text = "What would you like to build today?\n\nAsk a question or describe a script below.",
+    Text = "A calmer space for your next idea.\n\nSelect a conversation or type a message below.",
     TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 15, TextWrapped = true,
     TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 3,
 }, UIRefs.Content)
@@ -988,7 +988,7 @@ UIRefs.InputClip = create("ScrollingFrame", {
 }, UIRefs.InputBar)
 UIRefs.InputBox = create("TextBox", {
     Name = "MessageInput", Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -8, 0, UIRefs.INPUT_HEIGHT),
-    BackgroundTransparency = 1, Text = "", PlaceholderText = "Ask a question or describe a script...", PlaceholderColor3 = Theme.QuietText,
+    BackgroundTransparency = 1, Text = "", PlaceholderText = "Type Here...", PlaceholderColor3 = Theme.QuietText,
     TextColor3 = Theme.PrimaryText, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center,
     Font = Theme.Font, TextSize = 13, ClearTextOnFocus = false,
     MultiLine = true, TextWrapped = true, ZIndex = 10,
@@ -1392,7 +1392,7 @@ deleteConversationById = function(id)
         selectedConversationId = nil
         clearRenderedMessages()
         chatHasContent = false
-        if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "New conversation" end
+        if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "Dr4gonik Hub" end
         if UIRefs.EmptyChatLabel then
             UIRefs.EmptyChatLabel.Visible = true
             UIRefs.EmptyChatLabel.Text = "Conversation deleted."
@@ -1571,16 +1571,9 @@ UIRefs.WindowState.setState = function(newState)
     end
 end
 
-UIRefs.MinBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = false end)
+UIRefs.MinBtn.MouseButton1Click:Connect(function() UIRefs.WindowState.setState(UIRefs.WindowState.state == "minimized" and "normal" or "minimized") end)
 UIRefs.MaxBtn.MouseButton1Click:Connect(function() UIRefs.WindowState.setState(UIRefs.WindowState.state == "maximized" and "normal" or "maximized") end)
 UIRefs.CloseBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = false end)
-
--- Right Shift restores the interface after the yellow window control hides it.
-UIRefs.UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        UIRefs.ScreenGui.Enabled = true
-    end
-end)
 
 --============================================================
 --// DIVIDER
@@ -1748,9 +1741,9 @@ if selectedConversationId then
     chatHasContent = #getConversation(selectedConversationId).history > 0
     if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = not chatHasContent end
 else
-    if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "New conversation" end
+    if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "Dr4gonik Hub" end
     if UIRefs.EmptyChatLabel then
-        UIRefs.EmptyChatLabel.Text = "What would you like to build today?\n\nAsk a question or describe a script below."
+        UIRefs.EmptyChatLabel.Text = "Welcome to Dr4gonik Hub.\n\nStart a new conversation or type a message below."
         UIRefs.EmptyChatLabel.Visible = true
     end
     chatHasContent = false
