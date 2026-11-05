@@ -1732,9 +1732,16 @@ UIRefs.WindowState.setState = function(newState)
     end
 end
 
-UIRefs.MinBtn.MouseButton1Click:Connect(function() UIRefs.WindowState.setState(UIRefs.WindowState.state == "minimized" and "normal" or "minimized") end)
+UIRefs.MinBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = false end)
 UIRefs.MaxBtn.MouseButton1Click:Connect(function() UIRefs.WindowState.setState(UIRefs.WindowState.state == "maximized" and "normal" or "maximized") end)
 UIRefs.CloseBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = false end)
+
+-- Right Shift restores the UI after the yellow window control hides it.
+UIRefs.UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        UIRefs.ScreenGui.Enabled = true
+    end
+end)
 
 --============================================================
 --// DIVIDER
