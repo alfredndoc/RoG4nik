@@ -16,7 +16,7 @@ local function refreshThemeControls() end
 do
 SettingsView = create("Frame", {
     Name = "SettingsView", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
-    Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.WORKSPACE_BOTTOM_GAP)), BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
     BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 5,
 }, UIRefs.Content)
 

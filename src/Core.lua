@@ -154,25 +154,23 @@ end
 --============================================================
 --// LAYOUT CONSTANTS
 --============================================================
-UIRefs.InitialViewport = viewportSize()
-UIRefs.WINDOW_HEIGHT = math.max(500, math.min(920, math.floor(UIRefs.InitialViewport.Y * 0.9)))
-UIRefs.WINDOW_WIDTH = math.max(760, math.floor(math.min(UIRefs.InitialViewport.X - 48, UIRefs.WINDOW_HEIGHT * 1.52)))
+UIRefs.WINDOW_WIDTH = 760
+UIRefs.WINDOW_HEIGHT = 500
 UIRefs.WINDOW_SIZE = UDim2.fromOffset(UIRefs.WINDOW_WIDTH, UIRefs.WINDOW_HEIGHT)
 UIRefs.WINDOW_POSITION = UDim2.new(0.5, -UIRefs.WINDOW_WIDTH / 2, 0.5, -UIRefs.WINDOW_HEIGHT / 2)
-UIRefs.MINIMIZED_HEIGHT = 44
-UIRefs.SIDEBAR_START = math.clamp(math.floor(UIRefs.WINDOW_WIDTH * 0.26), 220, 390)
+UIRefs.MINIMIZED_HEIGHT = 60
+UIRefs.SIDEBAR_START = 260
 UIRefs.SIDEBAR_MIN = 200
-UIRefs.SIDEBAR_MAX = math.max(260, math.min(460, math.floor(UIRefs.WINDOW_WIDTH * 0.36)))
+UIRefs.SIDEBAR_MAX = 350
 UIRefs.DIVIDER_WIDTH = 12
-UIRefs.SIDEBAR_HEADER_HEIGHT = 96
-UIRefs.FOOTER_HEIGHT = 96
-UIRefs.RIGHT_CONTENT_INSET_X = 30
-UIRefs.RIGHT_CONTENT_INSET_Y = 22
-UIRefs.RIGHT_HEADER_HEIGHT = 58
-UIRefs.INPUT_HEIGHT = 84
-UIRefs.CHAT_TOP = 74
-UIRefs.CHAT_BOTTOM_GAP = 128
-UIRefs.WORKSPACE_BOTTOM_GAP = 28
+UIRefs.SIDEBAR_HEADER_HEIGHT = 56
+UIRefs.FOOTER_HEIGHT = 68
+UIRefs.RIGHT_CONTENT_INSET_X = 22
+UIRefs.RIGHT_CONTENT_INSET_Y = 18
+UIRefs.RIGHT_HEADER_HEIGHT = 44
+UIRefs.INPUT_HEIGHT = 58
+UIRefs.CHAT_TOP = 54
+UIRefs.CHAT_BOTTOM_GAP = 72
 
 --[[GITHUB_MODULE:SystemPrompt.lua]]
 
@@ -202,7 +200,7 @@ UIRefs.MainFrame = create("Frame", {
     Name = "MainWindow", Size = UIRefs.WINDOW_SIZE, Position = UIRefs.WINDOW_POSITION,
     BackgroundColor3 = Theme.Background, BorderSizePixel = 0, ClipsDescendants = true, Active = true, ZIndex = 1,
 }, UIRefs.ScreenGui)
-corner(UIRefs.MainFrame, 22)
+corner(UIRefs.MainFrame, 16)
 stroke(UIRefs.MainFrame, Theme.Border, 1, 0.15)
 
 UIRefs.ThemeTransitionOverlay = create("Frame", {
@@ -210,7 +208,7 @@ UIRefs.ThemeTransitionOverlay = create("Frame", {
     BackgroundColor3 = Theme.Background, BackgroundTransparency = 1, Visible = false,
     BorderSizePixel = 0, Active = false, Selectable = false, ZIndex = 200,
 }, UIRefs.MainFrame)
-corner(UIRefs.ThemeTransitionOverlay, 22)
+corner(UIRefs.ThemeTransitionOverlay, 16)
 create("UIGradient", {
     Rotation = 0,
     Color = ColorSequence.new({
@@ -232,7 +230,7 @@ UIRefs.LeftPane = create("Frame", {
     Name = "LeftPane", Size = UDim2.new(0, UIRefs.SIDEBAR_START, 1, 0),
     BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 1,
 }, UIRefs.MainFrame)
-corner(UIRefs.LeftPane, 22)
+corner(UIRefs.LeftPane, 16)
 create("Frame", {
     Name = "LeftPaneEdgeFill", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0),
     Size = UDim2.new(0, 16, 1, 0), BackgroundColor3 = Theme.Sidebar, BorderSizePixel = 0, ZIndex = 1,
@@ -243,7 +241,7 @@ UIRefs.RightPane = create("Frame", {
     Size = UDim2.new(1, -(UIRefs.SIDEBAR_START + 1), 1, 0), BackgroundColor3 = Theme.RightBg,
     BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 1,
 }, UIRefs.MainFrame)
-corner(UIRefs.RightPane, 22)
+corner(UIRefs.RightPane, 16)
 
 UIRefs.DividerHitbox = create("Frame", {
     Name = "DividerHitbox", Position = UDim2.new(0, UIRefs.SIDEBAR_START - UIRefs.DIVIDER_WIDTH / 2, 0, 0),
@@ -267,7 +265,7 @@ end
 --// SIDEBAR HEADER
 --============================================================
 UIRefs.SidebarHeader = create("Frame", {
-    Name = "SidebarHeader", Position = UDim2.new(0, 16, 0, 47),
+    Name = "SidebarHeader", Position = UDim2.new(0, 16, 0, 15),
     Size = UDim2.new(1, -32, 0, 28), BackgroundTransparency = 1, ZIndex = 5,
 }, UIRefs.LeftPane)
 
@@ -321,46 +319,43 @@ UIRefs.SidebarScroll = create("ScrollingFrame", {
     AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0, 0, 0, 0), ZIndex = 3,
 }, UIRefs.LeftPane)
 styleScrollBar(UIRefs.SidebarScroll)
-create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, UIRefs.SidebarScroll)
-padding(UIRefs.SidebarScroll, 16, 16, 8, 14)
+create("UIListLayout", { Padding = UDim.new(0, 11), SortOrder = Enum.SortOrder.LayoutOrder }, UIRefs.SidebarScroll)
+padding(UIRefs.SidebarScroll, 15, 15, 7, 16)
 
 create("TextLabel", {
     Name = "WorkspaceTitle", Size = UDim2.new(1, 0, 0, 23), BackgroundTransparency = 1,
-    Text = "WORKSPACE", TextColor3 = Theme.QuietText, Font = Theme.FontBold,
-    TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left,
+    Text = "Your workspace", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
+    TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = 1, ZIndex = 4,
 }, UIRefs.SidebarScroll)
 
 UIRefs.SegmentedControl = create("Frame", {
-    Name = "WorkspaceNavigation", Size = UDim2.new(1, 0, 0, 118),
-    BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 4,
+    Name = "SegmentedControl", Size = UDim2.new(1, 0, 0, 37),
+    BackgroundColor3 = Theme.SegmentedBg, BorderSizePixel = 0, LayoutOrder = 2, ZIndex = 4,
 }, UIRefs.SidebarScroll)
+corner(UIRefs.SegmentedControl, 10)
+stroke(UIRefs.SegmentedControl, Theme.Border, 1, 0.18)
 UIRefs.TabIndicator = create("Frame", {
-    Name = "TabIndicator", Position = UDim2.new(0, 3, 0, 2),
-    Size = UDim2.new(1, -6, 0, 34), BackgroundColor3 = Theme.Selected, BorderSizePixel = 0, ZIndex = 5,
+    Name = "TabIndicator", Position = UDim2.new(0, 3, 0, 3),
+    Size = UDim2.new(1 / 3, -4, 1, -6), BackgroundColor3 = Theme.Hover, BorderSizePixel = 0, ZIndex = 5,
 }, UIRefs.SegmentedControl)
-corner(UIRefs.TabIndicator, 9)
-stroke(UIRefs.TabIndicator, Theme.Border, 1, 0.45)
+corner(UIRefs.TabIndicator, 8)
 
 local tabButtons = {}
-local activeTab = "Chat"
-UIRefs.TabGlyphs = { Scripts = "▤", Chat = "◌", Code = "‹›" }
+local activeTab = "Scripts"
 local function createTab(name, index)
     local button = create("TextButton", {
-        Name = name .. "Tab", Position = UDim2.new(0, 0, 0, (index - 1) * 39),
-        Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1,
-        Text = UIRefs.TabGlyphs[name] .. "    " .. name,
+        Name = name .. "Tab", Position = UDim2.new((index - 1) / 3, 0, 0, 0),
+        Size = UDim2.new(1 / 3, 0, 1, 0), BackgroundTransparency = 1, Text = name,
         TextColor3 = name == activeTab and Theme.PrimaryText or Theme.MutedText,
-        Font = name == activeTab and Theme.FontBold or Theme.Font, TextSize = 13,
-        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, ZIndex = 6,
+        Font = name == activeTab and Theme.FontBold or Theme.Font, TextSize = 12,
+        AutoButtonColor = false, ZIndex = 6,
     }, UIRefs.SegmentedControl)
-    padding(button, 14, 10, 0, 0)
-    corner(button, 9)
     button.MouseEnter:Connect(function()
-        if activeTab ~= name then tween(button, { BackgroundTransparency = 0.72, TextColor3 = Theme.PrimaryText }, 0.12) end
+        if activeTab ~= name then tween(button, { TextColor3 = Theme.PrimaryText }, 0.12) end
     end)
     button.MouseLeave:Connect(function()
-        if activeTab ~= name then tween(button, { BackgroundTransparency = 1, TextColor3 = Theme.MutedText }, 0.12) end
+        if activeTab ~= name then tween(button, { TextColor3 = Theme.MutedText }, 0.12) end
     end)
     tabButtons[name] = button
     return button
@@ -368,16 +363,18 @@ end
 UIRefs.CoworkTab = createTab("Scripts", 1)
 UIRefs.ChatTab = createTab("Chat", 2)
 UIRefs.CodeTab = createTab("Code", 3)
+
 UIRefs.NewConvoBtn = create("TextButton", {
-    Name = "NewConversationButton", Size = UDim2.new(1, 0, 0, 42),
-    BackgroundColor3 = Theme.Accent, BorderSizePixel = 0, Text = "+   New conversation",
-    TextColor3 = Theme.White, Font = Theme.FontBold, TextSize = 13,
-    TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, LayoutOrder = 2, ZIndex = 4,
+    Name = "NewConversationButton", Size = UDim2.new(1, 0, 0, 39),
+    BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = "+   New conversation",
+    TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false, LayoutOrder = 3, ZIndex = 4,
 }, UIRefs.SidebarScroll)
-corner(UIRefs.NewConvoBtn, 11)
-stroke(UIRefs.NewConvoBtn, Theme.AccentHover, 1, 0.35)
-padding(UIRefs.NewConvoBtn, 14, 12, 0, 0)
-bindSoftButton(UIRefs.NewConvoBtn, { BackgroundColor3 = Theme.AccentHover }, 1.015)
+corner(UIRefs.NewConvoBtn, 9)
+stroke(UIRefs.NewConvoBtn, Theme.Border, 1, 0.1)
+padding(UIRefs.NewConvoBtn, 13, 12, 0, 0)
+bindSoftButton(UIRefs.NewConvoBtn, { BackgroundColor3 = Theme.Hover }, 1.015)
+
 local function createSidebarNavButton(name, order)
     local button = create("TextButton", {
         Name = name:gsub("%s", "") .. "Button", Size = UDim2.new(1, 0, 0, 32),
@@ -390,13 +387,13 @@ local function createSidebarNavButton(name, order)
     bindSoftButton(button, { BackgroundTransparency = 0.2, TextColor3 = Theme.PrimaryText }, 1.015)
     return button
 end
-UIRefs.SettingsButton = createSidebarNavButton("Settings", 8)
-UIRefs.FoldersButton = createSidebarNavButton("Conversation folders", 4)
+UIRefs.SettingsButton = createSidebarNavButton("Settings", 4)
+UIRefs.FoldersButton = createSidebarNavButton("Conversation folders", 5)
 
 create("TextLabel", {
     Name = "RecentLabel", Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1,
-    Text = "THREADS", TextColor3 = Theme.QuietText, Font = Theme.FontBold,
-    TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 5, ZIndex = 4,
+    Text = "RECENT CHATS", TextColor3 = Theme.QuietText, Font = Theme.FontBold,
+    TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 6, ZIndex = 4,
 }, UIRefs.SidebarScroll)
 
 --============================================================
@@ -443,39 +440,40 @@ UIRefs.TitleGroup = create("Frame", {
 UIRefs.ChatTitle = create("TextLabel", {
     Name = "ChatTitle", Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1,
     Text = "New conversation", TextColor3 = Theme.PrimaryText, Font = Theme.FontBold,
-    TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left,
+    TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
 }, UIRefs.TitleGroup)
 UIRefs.ChatSub = create("TextLabel", {
-    Name = "ChatSubtitle", Position = UDim2.new(0, 0, 0, 28), Size = UDim2.new(1, 0, 0, 18),
+    Name = "ChatSubtitle", Position = UDim2.new(0, 0, 0, 23), Size = UDim2.new(1, 0, 0, 16),
     BackgroundTransparency = 1, Text = "AI coding workspace", TextColor3 = Theme.MutedText,
     Font = Theme.Font, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 9,
 }, UIRefs.TitleGroup)
 
 UIRefs.WindowControls = create("Frame", {
-    Name = "WindowControls", Position = UDim2.new(0, 16, 0, 15),
-    Size = UDim2.new(0, 60, 0, 16), BackgroundTransparency = 1, ZIndex = 9,
-}, UIRefs.LeftPane)
+    Name = "WindowControls", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 4),
+    Size = UDim2.new(0, 91, 0, 29), BackgroundTransparency = 1, ZIndex = 9,
+}, UIRefs.RightHeader)
 create("UIListLayout", {
-    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Left,
-    VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder,
+    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Right,
+    VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
 }, UIRefs.WindowControls)
 
-local function createWindowButton(name, buttonColor, order)
+local function createWindowButton(name, glyph, order, isDanger)
     local button = create("TextButton", {
-        Name = name, Size = UDim2.fromOffset(12, 12),
-        BackgroundColor3 = buttonColor, BorderSizePixel = 0, Text = "",
-        AutoButtonColor = false, LayoutOrder = order, ZIndex = 10,
+        Name = name, Size = UDim2.fromOffset(27, 27),
+        BackgroundColor3 = isDanger and Theme.Danger or Theme.Hover, BackgroundTransparency = 1,
+        BorderSizePixel = 0, Text = glyph, TextColor3 = Theme.MutedText, Font = Theme.Font,
+        TextSize = isDanger and 13 or 15, AutoButtonColor = false, LayoutOrder = order, ZIndex = 10,
     }, UIRefs.WindowControls)
-    corner(button, 8)
-    stroke(button, Color3.fromRGB(255, 255, 255), 1, 0.78)
-    bindSoftButton(button, { BackgroundColor3 = buttonColor }, 1.12)
+    corner(button, 7)
+    bindSoftButton(button, { BackgroundTransparency = isDanger and 0.05 or 0.12, TextColor3 = Theme.White }, 1.06)
     return button
 end
-UIRefs.CloseBtn = createWindowButton("CloseButton", Color3.fromRGB(247, 91, 84), 1)
-UIRefs.MinBtn = createWindowButton("MinimizeButton", Color3.fromRGB(242, 190, 66), 2)
-UIRefs.MaxBtn = createWindowButton("MaximizeButton", Color3.fromRGB(73, 190, 106), 3)
+UIRefs.MinBtn = createWindowButton("MinimizeButton", "—", 1, false)
+UIRefs.MaxBtn = createWindowButton("MaximizeButton", "□", 2, false)
+UIRefs.CloseBtn = createWindowButton("CloseButton", "×", 3, true)
+
 --============================================================
 --// CHAT STATE
 --============================================================
@@ -501,154 +499,20 @@ padding(UIRefs.ChatDisplay, 2, 7, 9, 12)
 UIRefs.EmptyChatLabel = create("TextLabel", {
     Name = "EmptyState", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
     Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1,
-    Text = "",
+    Text = "What would you like to build today?\n\nAsk a question or describe a script below.",
     TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 15, TextWrapped = true,
     TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 3,
 }, UIRefs.Content)
 
-UIRefs.ChatHome = create("Frame", {
-    Name = "ChatHome", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 4,
-}, UIRefs.EmptyChatLabel)
-UIRefs.HomeIconHalo = create("Frame", {
-    Name = "HomeIconHalo", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 16),
-    Size = UDim2.fromOffset(52, 52), BackgroundColor3 = Theme.AccentSoft, BorderSizePixel = 0, ZIndex = 5,
-}, UIRefs.ChatHome)
-corner(UIRefs.HomeIconHalo, 26)
-stroke(UIRefs.HomeIconHalo, Theme.Accent, 1, 0.58)
-Theme.createHubGlyph(UIRefs.HomeIconHalo, 28, 6, Theme.AccentHover, true)
-
-UIRefs.HomeEyebrow = create("TextLabel", {
-    Name = "HomeEyebrow", Position = UDim2.new(0, 0, 0, 78), Size = UDim2.new(1, 0, 0, 18),
-    BackgroundTransparency = 1, Text = "DR4GONIK  /  AI WORKSPACE",
-    TextColor3 = Theme.AccentHover, Font = Theme.FontBold, TextSize = 10,
-    TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 5,
-}, UIRefs.ChatHome)
-UIRefs.HomeTitle = create("TextLabel", {
-    Name = "HomeTitle", Position = UDim2.new(0, 12, 0, 99), Size = UDim2.new(1, -24, 0, 38),
-    BackgroundTransparency = 1, Text = "Think bigger with your game.",
-    TextColor3 = Theme.PrimaryText, Font = Theme.FontBold, TextSize = 27,
-    TextXAlignment = Enum.TextXAlignment.Center, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 5,
-}, UIRefs.ChatHome)
-UIRefs.HomeDescription = create("TextLabel", {
-    Name = "HomeDescription", Position = UDim2.new(0.08, 0, 0, 140), Size = UDim2.new(0.84, 0, 0, 34),
-    BackgroundTransparency = 1, Text = "Explore a script, work through a bug, or shape your next Roblox feature.",
-    TextColor3 = Theme.MutedText, Font = Theme.Font, TextSize = 13, TextWrapped = true,
-    TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 5,
-}, UIRefs.ChatHome)
-
-UIRefs.HomeQuickActions = create("Frame", {
-    Name = "HomeQuickActions", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 183),
-    Size = UDim2.new(1, -16, 0, 34), BackgroundTransparency = 1, ZIndex = 5,
-}, UIRefs.ChatHome)
-create("UIListLayout", {
-    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-    VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 9), SortOrder = Enum.SortOrder.LayoutOrder,
-}, UIRefs.HomeQuickActions)
-UIRefs.HomeQuickActionData = {
-    { label = "Design a script", prompt = "Help me design a clean Luau script for a Roblox feature." },
-    { label = "Analyze an error", prompt = "Help me understand and fix this Roblox Lua error:" },
-    { label = "Explain Lua", prompt = "Explain this Luau script step by step:" },
-}
-for index, action in ipairs(UIRefs.HomeQuickActionData) do
-    local button = create("TextButton", {
-        Name = "QuickAction" .. tostring(index), Size = UDim2.new(0, 148, 0, 31),
-        BackgroundColor3 = Theme.PanelRaised, BorderSizePixel = 0, Text = action.label,
-        TextColor3 = Theme.PrimaryText, Font = Theme.Font, TextSize = 11,
-        AutoButtonColor = false, LayoutOrder = index, ZIndex = 6,
-    }, UIRefs.HomeQuickActions)
-    button:SetAttribute("SuggestedPrompt", action.prompt)
-    corner(button, 10)
-    stroke(button, Theme.Border, 1, 0.25)
-    bindSoftButton(button, { BackgroundColor3 = Theme.Hover }, 1.025)
-    button.MouseButton1Click:Connect(function()
-        UIRefs.InputBox.Text = button:GetAttribute("SuggestedPrompt") or ""
-        UIRefs.InputBox:CaptureFocus()
-    end)
-end
-
-UIRefs.HomeSectionLabel = create("TextLabel", {
-    Name = "HomeSectionLabel", Position = UDim2.new(0, 2, 0, 241), Size = UDim2.new(1, -4, 0, 20),
-    BackgroundTransparency = 1, Text = "RECOMMENDED FOR YOU",
-    TextColor3 = Theme.QuietText, Font = Theme.FontBold, TextSize = 10,
-    TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5,
-}, UIRefs.ChatHome)
-UIRefs.HomeCards = create("Frame", {
-    Name = "HomeCards", Position = UDim2.new(0, 0, 0, 270), Size = UDim2.new(1, 0, 0, 142),
-    BackgroundTransparency = 1, ZIndex = 5,
-}, UIRefs.ChatHome)
-create("UIListLayout", {
-    FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-    VerticalAlignment = Enum.VerticalAlignment.Top, Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder,
-}, UIRefs.HomeCards)
-UIRefs.HomeCardData = {
-    { title = "Plan a feature", description = "Turn a game idea into a clear, manageable build plan.", prompt = "Help me plan a Roblox feature. Ask me questions first, then outline the systems and steps." },
-    { title = "Debug a problem", description = "Trace an error and work through a focused fix.", prompt = "Help me debug this Roblox issue. Explain the cause and propose a small, safe fix:" },
-    { title = "Understand a script", description = "Get a readable walkthrough before you edit or run it.", prompt = "Explain this Luau script, including what it changes and any important side effects:" },
-}
-for index, item in ipairs(UIRefs.HomeCardData) do
-    local button = create("TextButton", {
-        Name = "RecommendedCard" .. tostring(index), Size = UDim2.new(1 / 3, -8, 1, 0),
-        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Text = "",
-        AutoButtonColor = false, LayoutOrder = index, ZIndex = 6,
-    }, UIRefs.HomeCards)
-    corner(button, 13)
-    stroke(button, Theme.Border, 1, 0.2)
-    bindSoftButton(button, { BackgroundColor3 = Theme.PanelRaised }, 1.015)
-    create("TextLabel", {
-        Name = "RecommendedKicker", Position = UDim2.new(0, 14, 0, 15), Size = UDim2.new(1, -28, 0, 18),
-        BackgroundTransparency = 1, Text = index == 1 and "01  ·  START WITH AN IDEA" or (index == 2 and "02  ·  SOLVE A PROBLEM" or "03  ·  EXPLORE CODE"),
-        TextColor3 = Theme.AccentHover, Font = Theme.FontBold, TextSize = 9,
-        TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 7,
-    }, button)
-    create("TextLabel", {
-        Name = "RecommendedTitle", Position = UDim2.new(0, 14, 0, 39), Size = UDim2.new(1, -28, 0, 22),
-        BackgroundTransparency = 1, Text = item.title, TextColor3 = Theme.PrimaryText,
-        Font = Theme.FontBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 7,
-    }, button)
-    create("TextLabel", {
-        Name = "RecommendedDescription", Position = UDim2.new(0, 14, 0, 64), Size = UDim2.new(1, -28, 0, 58),
-        BackgroundTransparency = 1, Text = item.description, TextColor3 = Theme.MutedText,
-        Font = Theme.Font, TextSize = 11, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 7,
-    }, button)
-    button:SetAttribute("SuggestedPrompt", item.prompt)
-    button.MouseButton1Click:Connect(function()
-        UIRefs.InputBox.Text = button:GetAttribute("SuggestedPrompt") or ""
-        UIRefs.InputBox:CaptureFocus()
-    end)
-end
-
--- Keep the landing layout clear when Roblox is running in a compact window.
-if UIRefs.WINDOW_HEIGHT < 620 then
-    UIRefs.HomeIconHalo.Position = UDim2.new(0.5, 0, 0, 2)
-    UIRefs.HomeIconHalo.Size = UDim2.fromOffset(42, 42)
-    UIRefs.HomeEyebrow.Position = UDim2.new(0, 0, 0, 49)
-    UIRefs.HomeTitle.Position = UDim2.new(0.05, 0, 0, 67)
-    UIRefs.HomeTitle.Size = UDim2.new(0.9, 0, 0, 34)
-    UIRefs.HomeTitle.TextSize = 23
-    UIRefs.HomeDescription.Position = UDim2.new(0.08, 0, 0, 105)
-    UIRefs.HomeDescription.Size = UDim2.new(0.84, 0, 0, 34)
-    UIRefs.HomeDescription.TextSize = 12
-    UIRefs.HomeQuickActions.Visible = false
-    UIRefs.HomeSectionLabel.Position = UDim2.new(0, 2, 0, 150)
-    UIRefs.HomeCards.Position = UDim2.new(0, 0, 0, 176)
-    UIRefs.HomeCards.Size = UDim2.new(1, 0, 0, 106)
-    for _, card in ipairs(UIRefs.HomeCards:GetChildren()) do
-        local description = card:FindFirstChild("RecommendedDescription")
-        if description then
-            description.Position = UDim2.new(0, 11, 0, 61)
-            description.Size = UDim2.new(1, -22, 0, 38)
-            description.TextSize = 10
-        end
-    end
-end
 --============================================================
 --// CODE EDITOR TAB
+--============================================================
+local setActiveTab
 UIRefs.ScriptUI = {}
+
 UIRefs.CodeEditorFrame = create("Frame", {
     Name = "CodeEditorFrame", Position = UDim2.new(0, 0, 0, UIRefs.CHAT_TOP),
-    Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.WORKSPACE_BOTTOM_GAP)), BackgroundTransparency = 1, Visible = false, ZIndex = 4,
+    Size = UDim2.new(1, 0, 1, -(UIRefs.CHAT_TOP + UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency = 1, Visible = false, ZIndex = 4,
 }, UIRefs.Content)
 
 UIRefs.CodePanel = create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Theme.Background, BorderSizePixel = 0 }, UIRefs.CodeEditorFrame)
@@ -773,7 +637,7 @@ end)
 --============================================================
 --// SCRIPTS LIBRARY VIEW
 --============================================================
-UIRefs.ScriptUI.View = create("Frame", {Name="ScriptsView", Position=UDim2.new(0,0,0,UIRefs.CHAT_TOP), Size=UDim2.new(1,0,1,-(UIRefs.CHAT_TOP+UIRefs.WORKSPACE_BOTTOM_GAP)), BackgroundTransparency=1, Visible=false, ZIndex=4}, UIRefs.Content)
+UIRefs.ScriptUI.View = create("Frame", {Name="ScriptsView", Position=UDim2.new(0,0,0,UIRefs.CHAT_TOP), Size=UDim2.new(1,0,1,-(UIRefs.CHAT_TOP+UIRefs.CHAT_BOTTOM_GAP)), BackgroundTransparency=1, Visible=false, ZIndex=4}, UIRefs.Content)
 
 UIRefs.NewScriptBtn = create("TextButton", {Position=UDim2.new(0,0,0,0), Size=UDim2.new(1,-8,0,36), BackgroundColor3=Theme.Panel, BorderSizePixel=0, Text="+ New Script", TextColor3=Theme.PrimaryText, Font=Theme.FontBold, TextSize=13, ZIndex=6}, UIRefs.ScriptUI.View)
 corner(UIRefs.NewScriptBtn, 8); stroke(UIRefs.NewScriptBtn, Theme.Border, 1, 0.15)
@@ -1061,7 +925,7 @@ create("Frame", {
     BackgroundTransparency = 0.15, BorderSizePixel = 0, ZIndex = 9,
 }, UIRefs.Footer)
 UIRefs.Avatar = create("ImageLabel", {
-    Position = UDim2.new(0, 14, 0, 7), Size = UDim2.fromOffset(32, 32),
+    Position = UDim2.new(0, 15, 0.5, -18), Size = UDim2.fromOffset(36, 36),
     BackgroundColor3 = Theme.Panel, BorderSizePixel = 0,
     Image = string.format("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150", player.UserId),
     ScaleType = Enum.ScaleType.Crop, ZIndex = 10,
@@ -1069,53 +933,37 @@ UIRefs.Avatar = create("ImageLabel", {
 corner(UIRefs.Avatar, 18)
 stroke(UIRefs.Avatar, Theme.Border, 1, 0.25)
 create("TextLabel", {
-    Position = UDim2.new(0, 56, 0, 7), Size = UDim2.new(1, -100, 0, 17), BackgroundTransparency = 1,
+    Position = UDim2.new(0, 61, 0.5, -17), Size = UDim2.new(1, -110, 0, 17), BackgroundTransparency = 1,
     Text = player.DisplayName ~= "" and player.DisplayName or player.Name, TextColor3 = Theme.PrimaryText,
     Font = Theme.FontBold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
     TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10,
 }, UIRefs.Footer)
 create("TextLabel", {
-    Position = UDim2.new(0, 56, 0, 23), Size = UDim2.new(1, -100, 0, 15), BackgroundTransparency = 1,
+    Position = UDim2.new(0, 61, 0.5, 2), Size = UDim2.new(1, -110, 0, 15), BackgroundTransparency = 1,
     Text = "Project RoSeek", TextColor3 = Theme.MutedText, Font = Theme.Font,
     TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 10,
 }, UIRefs.Footer)
 UIRefs.ProfileOptionsBtn = create("TextButton", {
-    Name = "ProfileOptionsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 8),
-    Size = UDim2.fromOffset(28, 28), BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1,
+    Name = "ProfileOptionsButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0),
+    Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1,
     BorderSizePixel = 0, Text = "···", TextColor3 = Theme.MutedText, Font = Theme.FontBold,
     TextSize = 18, AutoButtonColor = false, ZIndex = 11,
 }, UIRefs.Footer)
 corner(UIRefs.ProfileOptionsBtn, 8)
 bindSoftButton(UIRefs.ProfileOptionsBtn, { BackgroundTransparency = 0.05, TextColor3 = Theme.PrimaryText }, 1.06)
-UIRefs.SettingsButton.Parent = UIRefs.Footer
-UIRefs.SettingsButton.Position = UDim2.new(0, 12, 1, -40)
-UIRefs.SettingsButton.Size = UDim2.new(1, -24, 0, 32)
-UIRefs.SettingsButton.LayoutOrder = 1
-UIRefs.SettingsButton.BackgroundColor3 = Theme.Panel
-UIRefs.SettingsButton.BackgroundTransparency = 0.12
-UIRefs.SettingsButton.Text = "⚙   Settings"
-UIRefs.SettingsButton.TextColor3 = Theme.PrimaryText
-UIRefs.SettingsButton.TextSize = 12
-stroke(UIRefs.SettingsButton, Theme.Border, 1, 0.18)
-UIRefs.SettingsChevron = create("TextLabel", {
-    Name = "SettingsChevron", AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -13, 1, -23), Size = UDim2.fromOffset(16, 20),
-    BackgroundTransparency = 1, Text = "›", TextColor3 = Theme.MutedText,
-    Font = Theme.Font, TextSize = 20, ZIndex = 12,
-}, UIRefs.Footer)
 
 --============================================================
 --// COMPOSER
 --============================================================
 UIRefs.InputBar = create("Frame", {
-    Name = "InputBar", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, -UIRefs.INPUT_HEIGHT), Size = UDim2.new(0.92, 0, 0, UIRefs.INPUT_HEIGHT),
+    Name = "InputBar", Position = UDim2.new(0, 0, 1, -UIRefs.INPUT_HEIGHT), Size = UDim2.new(1, 0, 0, UIRefs.INPUT_HEIGHT),
     BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, Active = true, ZIndex = 8,
 }, UIRefs.Content)
-corner(UIRefs.InputBar, 17)
+corner(UIRefs.InputBar, 13)
 UIRefs.InputStroke = stroke(UIRefs.InputBar, Theme.Border, 1, 0.05)
 
 UIRefs.PlusButton = create("ImageButton", {
-    Name = "AddButton", Position = UDim2.new(0, 10, 0.5, -17), Size = UDim2.fromOffset(36, 36),
+    Name = "AddButton", Position = UDim2.new(0, 10, 0.5, -17), Size = UDim2.fromOffset(33, 34),
     BackgroundColor3 = Theme.Hover, BackgroundTransparency = 1, BorderSizePixel = 0,
     Image = UIRefs.Icons.Plus, ImageColor3 = Theme.MutedText, AutoButtonColor = false, ZIndex = 10,
 }, UIRefs.InputBar)
@@ -1123,7 +971,7 @@ corner(UIRefs.PlusButton, 9)
 bindSoftButton(UIRefs.PlusButton, { BackgroundTransparency = 0.1, ImageColor3 = Theme.PrimaryText }, 1.07)
 
 UIRefs.EffortButton = create("TextButton", {
-    Name = "EffortButton", Position = UDim2.new(0, 53, 0.5, -15), Size = UDim2.fromOffset(32, 30),
+    Name = "EffortButton", Position = UDim2.new(0, 48, 0.5, -14), Size = UDim2.fromOffset(30, 28),
     BackgroundColor3 = Theme.PanelRaised, BackgroundTransparency = 0.1, BorderSizePixel = 0,
     Text = "◈", TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 15, AutoButtonColor = false, ZIndex = 10,
 }, UIRefs.InputBar)
@@ -1132,7 +980,7 @@ stroke(UIRefs.EffortButton, Theme.Accent, 1, 0.6)
 bindSoftButton(UIRefs.EffortButton, { BackgroundTransparency = 0, TextColor3 = Theme.AccentHover }, 1.06)
 
 UIRefs.InputClip = create("ScrollingFrame", {
-    Name = "MessageInputClip", Position = UDim2.new(0, 94, 0, 0), Size = UDim2.new(1, -190, 1, 0),
+    Name = "MessageInputClip", Position = UDim2.new(0, 84, 0, 0), Size = UDim2.new(1, -178, 1, 0),
     BackgroundTransparency = 1, BorderSizePixel = 0, ClipsDescendants = true, Active = true,
     ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 3,
     ScrollBarImageColor3 = Theme.Border, ScrollBarImageTransparency = 0.45,
@@ -1195,11 +1043,11 @@ corner(UIRefs.ComposerMoreBtn, 8)
 bindSoftButton(UIRefs.ComposerMoreBtn, { BackgroundTransparency = 0.08, TextColor3 = Theme.PrimaryText }, 1.06)
 
 UIRefs.SendBtn = create("ImageButton", {
-    Name = "SendButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
-    Size = UDim2.fromOffset(42, 42), BackgroundColor3 = Theme.Border, BorderSizePixel = 0,
+    Name = "SendButton", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -9, 0.5, 0),
+    Size = UDim2.fromOffset(38, 38), BackgroundColor3 = Theme.Border, BorderSizePixel = 0,
     Image = UIRefs.Icons.Send, ImageColor3 = Theme.MutedText, AutoButtonColor = false, ZIndex = 11,
 }, UIRefs.InputBar)
-corner(UIRefs.SendBtn, 13)
+corner(UIRefs.SendBtn, 11)
 UIRefs.SendStroke = stroke(UIRefs.SendBtn, Theme.Accent, 1, 1)
 UIRefs.SendScale = create("UIScale", { Scale = 1 }, UIRefs.SendBtn)
 AI.StopGlyph = create("TextLabel", {
@@ -1493,8 +1341,7 @@ createNewConversation = function()
     table.insert(conversations, 1, conv)
     refreshConversationOrder()
     showConversation(id)
-    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Text = "" end
-    if UIRefs.ChatHome then UIRefs.ChatHome.Visible = true end
+    if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Text = "A fresh start.\n\nType a message below to begin." end
     pcall(function()
         if AI.SaveHistory and writefile then writefile(UIRefs.CONVOS_FILE, UIRefs.HttpService:JSONEncode(conversations)) end
     end)
@@ -1520,8 +1367,7 @@ clearConversationById = function(id)
         chatHasContent = false
         if UIRefs.EmptyChatLabel then
             UIRefs.EmptyChatLabel.Visible = true
-            UIRefs.EmptyChatLabel.Text = ""
-            if UIRefs.ChatHome then UIRefs.ChatHome.Visible = true end
+            UIRefs.EmptyChatLabel.Text = "Conversation cleared.\n\nType a message below to begin again."
         end
     end
     pcall(function()
@@ -1549,8 +1395,7 @@ deleteConversationById = function(id)
         if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "New conversation" end
         if UIRefs.EmptyChatLabel then
             UIRefs.EmptyChatLabel.Visible = true
-            UIRefs.EmptyChatLabel.Text = ""
-            if UIRefs.ChatHome then UIRefs.ChatHome.Visible = true end
+            UIRefs.EmptyChatLabel.Text = "Conversation deleted."
         end
     end
     refreshConversationOrder()
@@ -1576,7 +1421,6 @@ AI.UpdateUIForTab = function(tab)
     if UIRefs.CodeEditorFrame then UIRefs.CodeEditorFrame.Visible = false end
     if UIRefs.ChatDisplay then UIRefs.ChatDisplay.Visible = false end
     if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = false end
-    if UIRefs.ChatHome then UIRefs.ChatHome.Visible = false end
     if UIRefs.InputBar then UIRefs.InputBar.Visible = false end
 
     if activeView == "settings" then
@@ -1591,11 +1435,7 @@ AI.UpdateUIForTab = function(tab)
         if UIRefs.CodeEditorFrame then UIRefs.CodeEditorFrame.Visible = true end
     elseif tab == "Chat" then
         if UIRefs.ChatDisplay then UIRefs.ChatDisplay.Visible = true end
-        if UIRefs.EmptyChatLabel then
-            UIRefs.EmptyChatLabel.Text = ""
-            UIRefs.EmptyChatLabel.Visible = not chatHasContent
-        end
-        if UIRefs.ChatHome then UIRefs.ChatHome.Visible = not chatHasContent end
+        if UIRefs.EmptyChatLabel then UIRefs.EmptyChatLabel.Visible = not chatHasContent end
         if UIRefs.InputBar then UIRefs.InputBar.Visible = true end
     end
 end
@@ -1616,18 +1456,18 @@ setActiveTab = function(name)
         activeView = "chat"
         local conversation = currentConversation()
         if UIRefs.ChatTitle then
-            UIRefs.ChatTitle.Text = conversation and conversation.title or (name == "Code" and "Code workspace" or (name == "Scripts" and "Script library" or "New conversation"))
+            UIRefs.ChatTitle.Text = conversation and conversation.title or (name == "Code" and "Code workspace" or (name == "Scripts" and "Script library" or "Dr4gonik Hub"))
         end
     end
     local index = name == "Scripts" and 1 or (name == "Chat" and 2 or 3)
-    tween(UIRefs.TabIndicator, { Position = UDim2.new(0, 3, 0, (index - 1) * 39 + 2) }, 0.24, Enum.EasingStyle.Quint)
+    tween(UIRefs.TabIndicator, { Position = UDim2.new((index - 1) / 3, 3, 0, 3) }, 0.24, Enum.EasingStyle.Quint)
     for tabName, button in pairs(tabButtons) do
         local isActive = tabName == name
         tween(button, { TextColor3 = isActive and Theme.PrimaryText or Theme.MutedText }, 0.14)
         button.Font = isActive and Theme.FontBold or Theme.Font
     end
     if UIRefs.ChatSub then
-        UIRefs.ChatSub.Text = (name == "Scripts" and "Script library") or (name == "Chat" and "AI coding workspace") or "Code workspace"
+        UIRefs.ChatSub.Text = (name == "Scripts" and "Script library") or (name == "Chat" and "A focused conversation") or "Code workspace"
     end
     AI.UpdateUIForTab(name)
 end
@@ -1651,14 +1491,13 @@ UIRefs.SearchButton.MouseButton1Click:Connect(function()
         UIRefs.InputBox.PlaceholderText = "Search conversations or type a message..."
         UIRefs.InputBox:CaptureFocus()
     else
-        UIRefs.InputBox.PlaceholderText = "Ask a question or describe a script..."
+        UIRefs.InputBox.PlaceholderText = "Type Here..."
         UIRefs.InputBox:ReleaseFocus()
     end
 end)
 UIRefs.FilesButton.MouseButton1Click:Connect(function()
     if UIRefs.EmptyChatLabel then
         UIRefs.EmptyChatLabel.Text = "Files workspace\n\nConnect a file picker or upload flow to add files here."
-        if UIRefs.ChatHome then UIRefs.ChatHome.Visible = false end
         UIRefs.EmptyChatLabel.Visible = not chatHasContent
     end
 end)
@@ -1681,7 +1520,6 @@ end)
 UIRefs.FoldersButton.MouseButton1Click:Connect(function()
     if UIRefs.EmptyChatLabel then
         UIRefs.EmptyChatLabel.Text = "Conversation folders\n\nYour folders can be connected here."
-        if UIRefs.ChatHome then UIRefs.ChatHome.Visible = false end
         UIRefs.EmptyChatLabel.Visible = not chatHasContent
     end
 end)
@@ -1737,7 +1575,7 @@ UIRefs.MinBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = fa
 UIRefs.MaxBtn.MouseButton1Click:Connect(function() UIRefs.WindowState.setState(UIRefs.WindowState.state == "maximized" and "normal" or "maximized") end)
 UIRefs.CloseBtn.MouseButton1Click:Connect(function() UIRefs.ScreenGui.Enabled = false end)
 
--- Right Shift restores the UI after the yellow window control hides it.
+-- Right Shift restores the interface after the yellow window control hides it.
 UIRefs.UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift then
         UIRefs.ScreenGui.Enabled = true
@@ -1912,13 +1750,12 @@ if selectedConversationId then
 else
     if UIRefs.ChatTitle then UIRefs.ChatTitle.Text = "New conversation" end
     if UIRefs.EmptyChatLabel then
-        UIRefs.EmptyChatLabel.Text = ""
+        UIRefs.EmptyChatLabel.Text = "What would you like to build today?\n\nAsk a question or describe a script below."
         UIRefs.EmptyChatLabel.Visible = true
     end
-    if UIRefs.ChatHome then UIRefs.ChatHome.Visible = true end
     chatHasContent = false
 end
-setActiveTab("Chat")
+setActiveTab("Scripts")
 UIRefs.ScriptUI.refreshCards()
 debugTrace("INFO", "UI boot complete · theme=" .. ThemeEngine.CurrentThemeName ..
     " · provider=" .. AI.Provider .. " · model=" .. AI.Model ..
